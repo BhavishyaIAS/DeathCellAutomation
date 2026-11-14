@@ -1,0 +1,18 @@
+{% extends "claims/base.html" %}
+{% block title %}Establishments{% endblock %}
+{% block nav_estt %}on{% endblock %}
+{% block content %}
+<div class="pagehead"><div><h1>Establishments</h1><p class="muted">Master used to pre-fill the checklist and address the letters</p></div>
+  <div class="actions"><form method="get" class="inline"><input type="search" name="q" value="{{ q }}" placeholder="Name or code"></form>
+    <a class="btn btn-primary" href="{% url 'establishment_new' %}">＋ Add establishment</a></div></div>
+<section class="card flush"><table class="table">
+  <thead><tr><th>Code</th><th>Establishment</th><th>District / AEO</th><th>Status</th><th>EDLI</th><th>DSC / e-Sign</th><th class="num">Death cases</th></tr></thead>
+  <tbody>{% for e in establishments %}<tr>
+    <td><a href="{% url 'establishment_edit' e.pk %}">{{ e.code }}</a></td><td>{{ e.name }}</td>
+    <td>{{ e.district|default:"—" }}<div class="sub">{{ e.aeo_office|default:"" }}</div></td>
+    <td><span class="pill pill-{% if e.status == 'LIVE' %}good{% else %}neutral{% endif %}">{{ e.get_status_display }}</span></td>
+    <td>{% if e.edli_exempted %}Exempted{% else %}Un-exempted{% endif %}</td>
+    <td><span class="pill pill-{% if e.dsc_status == 'ACTIVE' %}good{% else %}warn{% endif %}">{{ e.get_dsc_status_display }}</span></td>
+    <td class="num">{{ e.n_claims }}</td></tr>
+  {% empty %}<tr><td colspan="7" class="empty">No establishments yet.</td></tr>{% endfor %}</tbody></table></section>
+{% endblock %}

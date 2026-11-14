@@ -1,0 +1,242 @@
+{% extends "claims/base.html" %}
+{% load cell %}
+{% block title %}{{ claim.diary_no }} – {{ claim.member_name }}{% endblock %}
+{% block nav_claims %}on{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div><p class="crumb"><a href="{% url 'claim_list' %}">← Claims register</a></p>
+    <h1>{{ claim.late_name }} <span class="muted">· {{ claim.diary_no }}</span></h1>
+    <p class="muted">{{ claim.pf_no }}{% if claim.uan %} · UAN {{ claim.uan }}{% endif %} · M/s {{ claim.establishment.name }} · {{ claim.forms_text }}</p></div>
+  <div class="actions">
+    <span class="pill pill-lg pill-{{ claim.status|tone }}">{{ claim.get_status_display }}</span>
+  </div>
+</div>
+
+<ol class="stepper no-print">
+  <li class="{% if claim.status == 'REGISTERED' %}now{% else %}past{% endif %}">Received</li>
+  <li class="{% if claim.status == 'UNDER_SCRUTINY' %}now{% elif scrutiny and scrutiny.status != 'DRAFT' %}past{% endif %}">Scrutiny (DA)</li>
+  <li class="{% if claim.status == 'WITH_SS' %}now{% elif scrutiny.validated_at and scrutiny.status != 'DRAFT' %}past{% endif %}">Validation (SS)</li>
+  <li class="{% if claim.status == 'WITH_AO' %}now{% elif scrutiny.status == 'APPROVED' %}past{% endif %}">Approval (AO)</li>
+  {% if claim.status == 'PENDING_COMPLIANCE' %}<li class="now warn">Compliance awaited</li>{% endif %}
+  <li class="{% if claim.status == 'READY_FOR_INWARD' %}now{% elif forms %}past{% endif %}">Inward</li>
+  <li class="{% if claim.status == 'INWARDED' %}now{% elif claim.status == 'SETTLED' %}past{% endif %}">Settlement</li>
+</ol>
+
+<div class="detail">
+<div class="stack">
+
+  {# ---------------------------------------------------------------- next step #}
+  <section class="card next no-print">
+  {% if claim.status == "REGISTERED" %}
+    <h2>Next: scrutiny as per checklist</h2>
+    {% if perms.start %}<form method="post" action="{% url 'claim_action' claim.pk 'start' %}">{% csrf_token %}
+      <button class="btn btn-primary">Start scrutiny →</button></form>
+    {% else %}<p class="muted">Waiting for a Dealing Assistant to take up scrutiny.</p>{% endif %}
+
+  {% elif claim.status == "UNDER_SCRUTINY" %}
+    <h2>Next: complete the checklist and submit to the Section Supervisor</h2>
+    {% if scrutiny.ao_note or scrutiny.ss_note %}{% if scrutiny.submitted_at %}<div class="alert alert-warning"><strong>Returned with remarks:</strong> {{ scrutiny.ao_note|default:scrutiny.ss_note }}</div>{% endif %}{% endif %}
+    {% if result.missing %}<p class="muted">{{ result.missing|length }} checklist item{{ result.missing|length|pluralize }} still unanswered.</p>{% endif %}
+    {% if perms.submit %}
+    <form method="post" action="{% url 'claim_action' claim.pk 'submit' %}" class="actform">{% csrf_token %}
+      <a class="btn" href="{% url 'scrutiny' claim.pk %}">Open checklist</a>
+      <input type="text" name="note" placeholder="Note to the Section Supervisor (optional)">
+      <button class="btn btn-primary" {% if result.missing %}disabled title="Answer the remaining checklist items first"{% endif %}>Submit to Section Supervisor →</button>
+    </form>{% else %}<p class="muted">With the Dealing Assistant{% if claim.assigned_to %} ({{ claim.assigned_to.display_name }}){% endif %}.</p>{% endif %}
+
+  {% elif claim.status == "WITH_SS" or claim.status == "WITH_AO" %}
+    <h2>{% if claim.status == "WITH_SS" %}Next: validation by the Section Supervisor{% else %}Next: approval by the Accounts Officer{% endif %}</h2>
+    <p>Proposed: <strong>{{ scrutiny.get_action_display }}</strong>{% if scrutiny.da_note %} — <span class="muted">DA: {{ scrutiny.da_note }}</span>{% endif %}{% if scrutiny.ss_note and claim.status == "WITH_AO" %} <span class="muted">· SS: {{ scrutiny.ss_note }}</span>{% endif %}</p>
+    {% if perms.validate or perms.approve %}
+    <form method="post" class="actform">{% csrf_token %}
+      <input type="text" name="note" placeholder="Remarks (required when returning the file)">
+      <button class="btn" formaction="{% url 'claim_action' claim.pk 'send_back' %}">← Return to DA</button>
+      {% if perms.validate %}<button class="btn btn-primary" formaction="{% url 'claim_action' claim.pk 'validate' %}">Validate &amp; put up to AO →</button>{% endif %}
+      {% if perms.approve %}<button class="btn btn-primary" formaction="{% url 'claim_action' claim.pk 'approve' %}">Approve{% if communications %} &amp; number the letters{% endif %} ✓</button>{% endif %}
+    </form>
+    <p class="help">Check the findings and the draft communications below before {% if perms.approve %}approving{% else %}validating{% endif %}. You can correct either.</p>
+    {% else %}<p class="muted">The file is with the {% if claim.status == "WITH_SS" %}Section Supervisor{% else %}Accounts Officer{% endif %}.</p>{% endif %}
+
+  {% elif claim.status == "PENDING_COMPLIANCE" %}
+    <h2>Compliance awaited{% if claim.pending_with %} from {{ claim.pending_with|join:", " }}{% endif %}</h2>
+    <p>{{ open_count }} item{{ open_count|pluralize }} open, {{ resolved_count }} complied. Issue the approved communications, record replies as they arrive, and re-scrutinise once compliance is in.</p>
+    <div class="actform">
+    {% if perms.proceed_inward %}<form method="post" action="{% url 'claim_action' claim.pk 'proceed_inward' %}">{% csrf_token %}<button class="btn btn-primary">Office actions done – ready for inward →</button></form>{% endif %}
+    {% if perms.rescrutiny %}<form method="post" action="{% url 'claim_action' claim.pk 'rescrutiny' %}">{% csrf_token %}<button class="btn {% if not open_count and not perms.proceed_inward %}btn-primary{% endif %}">Compliance received – re-scrutinise →</button></form>{% endif %}
+    </div>
+
+  {% elif claim.status == "READY_FOR_INWARD" %}
+    <h2>Next: inward the claim forms</h2>
+    {% if perms.inward %}
+    <form method="post" action="{% url 'claim_action' claim.pk 'inward' %}" class="inwardform">{% csrf_token %}
+      <label>Inward date<input type="date" name="inward_on" value="{{ today|date:'Y-m-d' }}"></label>
+      {% for name in form_names %}<label>{{ name }} – claim ID<input type="text" name="claim_id_{{ name }}"></label>{% endfor %}
+      <button class="btn btn-primary">Record inward</button>
+    </form>{% else %}<p class="muted">Approved by the Accounts Officer. The Dealing Assistant will inward the forms.</p>{% endif %}
+
+  {% elif claim.status == "INWARDED" %}
+    <h2>Under settlement</h2><p class="muted">Record the disposal of each form below as it is settled.</p>
+  {% elif claim.status == "SETTLED" %}
+    <h2>✓ Settled</h2><p class="muted">All claim forms of this death case have been disposed.</p>
+  {% else %}
+    <h2>Closed</h2><p>{{ claim.closed_reason }}</p>
+  {% endif %}
+  </section>
+
+  {# ---------------------------------------------------------------- findings #}
+  {% if scrutiny %}
+  <section class="card">
+    <div class="card-head"><h2>Scrutiny – round {{ scrutiny.round_no }}</h2>
+      <span><a class="btn btn-sm" href="{% url 'scrutiny' claim.pk %}">{% if perms.edit %}Edit checklist{% else %}View checklist{% endif %}</a>
+      <a class="btn btn-sm" target="_blank" href="{% url 'checklist_print' claim.pk %}">Print checklist</a></span></div>
+    <dl class="kv">
+      <dt>Proposed action</dt><dd>{% if result.missing and scrutiny.action == "INWARD" %}<span class="muted">Checklist incomplete – no proposal yet</span>{% else %}<strong>{{ scrutiny.get_action_display|default:"—" }}</strong>{% endif %}</dd>
+      <dt>Scrutinised by</dt><dd>{{ scrutiny.prepared_by.display_name|default:"—" }}{% if scrutiny.submitted_at %} · {{ scrutiny.submitted_at|date:"d.m.Y H:i" }}{% endif %}</dd>
+      <dt>Validated by</dt><dd>{% if scrutiny.validated_at %}{{ scrutiny.validated_by.display_name }} · {{ scrutiny.validated_at|date:"d.m.Y H:i" }}{% else %}—{% endif %}</dd>
+      <dt>Approved by</dt><dd>{% if scrutiny.approved_at %}{{ scrutiny.approved_by.display_name }} · {{ scrutiny.approved_at|date:"d.m.Y H:i" }}{% else %}—{% endif %}</dd>
+    </dl>
+
+    {% if findings %}
+    <ol class="findings">
+    {% for f in findings %}
+      <li class="finding {% if not f.included %}excluded{% endif %} st-{{ f.status }}">
+        <div class="finding-head">
+          <span class="tag tag-{{ f.route }}">{{ f.route|route_short }}</span>
+          <strong>{{ f.title }}</strong>
+          {% if f.point %}<span class="pt">checklist pt. {{ f.point }}</span>{% endif %}
+          {% if not f.auto %}<span class="pt">added by hand</span>{% elif f.edited %}<span class="pt">edited</span>{% endif %}
+          {% if not f.included %}<span class="pill pill-neutral">Dropped</span>
+          {% elif f.status != "OPEN" %}<span class="pill pill-{{ f.status|tone }}">{{ f.get_status_display }}{% if f.resolved_on %} {{ f.resolved_on|dmy }}{% endif %}</span>{% endif %}
+        </div>
+        <p class="finding-text">{{ f.text }}</p>
+        {% if f.resolution %}<p class="sub">↳ {{ f.resolution }}</p>{% endif %}
+
+        {% if perms.edit %}
+        <details class="inline-edit no-print"><summary>Edit / re-route</summary>
+          <form method="post" action="{% url 'finding_save' f.pk %}">{% csrf_token %}
+            <label>Short title<input type="text" name="title" value="{{ f.title }}"></label>
+            <label>Remark as it will appear in the letter<textarea name="text" rows="4">{{ f.text }}</textarea></label>
+            <div class="row"><label>Action lies with<select name="route">{% for k, v in routes %}<option value="{{ k }}" {% if f.route == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+            <label>Other Regional Office (if any)<input type="text" name="other_office" value="{{ f.other_office }}"></label></div>
+            <div class="rowline">
+              <button class="btn btn-sm btn-primary" name="op" value="save">Save</button>
+              <button class="btn btn-sm" name="op" value="toggle">{% if f.included %}Drop this remark{% else %}Restore{% endif %}</button>
+              {% if f.auto and f.edited %}<button class="btn btn-sm" name="op" value="reset">Reset to standard wording</button>{% endif %}
+              {% if not f.auto %}<button class="btn btn-sm btn-danger" name="op" value="delete">Delete</button>{% endif %}
+            </div>
+          </form></details>
+        {% elif perms.resolve and f.status == "OPEN" and f.included and f.route != "NOTE" %}
+        <details class="inline-edit no-print"><summary>Mark as complied</summary>
+          <form method="post" action="{% url 'finding_resolve' f.pk %}" class="rowline">{% csrf_token %}
+            <input type="date" name="resolved_on" value="{{ today|date:'Y-m-d' }}">
+            <input type="text" name="resolution" placeholder="How it was complied (reply ref., JD inward no., …)" class="grow">
+            <button class="btn btn-sm btn-primary">Complied</button></form></details>
+        {% endif %}
+      </li>
+    {% endfor %}
+    </ol>
+    {% elif scrutiny.status == "DRAFT" and result.missing %}
+      <p class="empty">Fill the checklist to see the findings.</p>
+    {% else %}
+      <p class="ok">✓ No discrepancy – the death claim forms may be inwarded.</p>
+    {% endif %}
+
+    {% if perms.edit %}
+    <details class="inline-edit add no-print"><summary>＋ Add a remark of your own</summary>
+      <form method="post" action="{% url 'finding_add' claim.pk %}">{% csrf_token %}
+        <label>Short title<input type="text" name="title" required></label>
+        <label>Remark as it will appear in the letter<textarea name="text" rows="3" required></textarea></label>
+        <div class="row"><label>Action lies with<select name="route">{% for k, v in routes %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></label>
+        <label>Other Regional Office (if any)<input type="text" name="other_office"></label></div>
+        <button class="btn btn-sm btn-primary">Add remark</button>
+      </form></details>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {# ---------------------------------------------------------- communications #}
+  {% if communications %}
+  <section class="card">
+    <div class="card-head"><h2>Letters, AEO references &amp; U.O. notes</h2>
+      <span class="muted small">Drafted automatically from the findings</span></div>
+    <table class="table">
+      <thead><tr><th>Communication</th><th>No. &amp; date</th><th>Status</th><th></th></tr></thead>
+      <tbody>{% for c in communications %}
+        <tr><td><a href="{% url 'letter_view' c.pk %}">{{ c.title }}</a>
+            <div class="sub">{{ c.points|length }} point{{ c.points|length|pluralize }}{% if c.scrutiny %} · round {{ c.scrutiny.round_no }}{% endif %}</div></td>
+          <td>{% if c.number %}{{ c.number }}<div class="sub">{{ c.letter_date|dmy }}</div>{% else %}<span class="muted">on approval</span>{% endif %}</td>
+          <td><span class="pill pill-{% if c.is_overdue %}bad{% else %}{{ c.status|tone }}{% endif %}">{% if c.is_overdue %}Reply overdue {{ c.days_overdue }} d{% else %}{{ c.get_status_display }}{% endif %}</span>
+            {% if c.issued_on %}<div class="sub">issued {{ c.issued_on|dmy }}{% if c.reply_on %} · reply {{ c.reply_on|dmy }}{% endif %}</div>{% endif %}</td>
+          <td class="num"><a class="btn btn-sm" href="{% url 'letter_view' c.pk %}">Open</a>
+            <a class="btn btn-sm" href="{% url 'letter_download' c.pk %}">Word</a></td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+
+  {# -------------------------------------------------------------- settlement #}
+  {% if forms %}
+  <section class="card">
+    <div class="card-head"><h2>Inward &amp; settlement</h2></div>
+    <form method="post" action="{% url 'claim_action' claim.pk 'settle' %}">{% csrf_token %}
+    <table class="table">
+      <thead><tr><th>Form</th><th>Claim ID</th><th>Inwarded</th><th>Disposal</th><th>Date</th><th>Amount (₹)</th><th>PPO no. / remarks</th></tr></thead>
+      <tbody>{% for f in forms %}
+        <tr><td><strong>{{ f.form_type }}</strong></td><td>{{ f.app_claim_id|default:"—" }}</td><td>{{ f.inward_on|dmy }}</td>
+        {% if perms.settle %}
+          <td><select name="state_{{ f.id }}">{% for k, v in form_states %}<option value="{{ k }}" {% if f.state == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></td>
+          <td><input type="date" name="settled_on_{{ f.id }}" value="{{ f.settled_on|date:'Y-m-d' }}"></td>
+          <td><input type="number" step="0.01" min="0" name="amount_{{ f.id }}" value="{{ f.amount|default_if_none:'' }}" class="amt"></td>
+          <td><input type="text" name="reference_{{ f.id }}" value="{{ f.reference }}"></td>
+        {% else %}
+          <td><span class="pill pill-{% if f.state == 'SETTLED' %}done{% elif f.state == 'REJECTED' %}bad{% else %}info{% endif %}">{{ f.get_state_display }}</span></td>
+          <td>{{ f.settled_on|dmy }}</td><td>{{ f.amount|default_if_none:"—" }}</td><td>{{ f.reference|default:"—" }}</td>
+        {% endif %}</tr>{% endfor %}
+      </tbody>
+    </table>
+    {% if perms.settle %}<div class="formactions"><button class="btn btn-primary">Save settlement particulars</button></div>{% endif %}
+    </form>
+  </section>
+  {% endif %}
+</div>
+
+<aside class="stack">
+  <section class="card">
+    <div class="card-head"><h2>Particulars</h2>{% if perms.edit_claim %}<a class="btn btn-sm no-print" href="{% url 'claim_edit' claim.pk %}">Edit</a>{% endif %}</div>
+    <dl class="kv">
+      <dt>Received</dt><dd>{{ claim.received_on|dmy }} · {{ claim.get_mode_display }}</dd>
+      <dt>Forms</dt><dd>{{ claim.forms_text }}</dd>
+      <dt>Date of death</dt><dd>{{ claim.date_of_death|dmy }}</dd>
+      <dt>Establishment</dt><dd>{{ claim.establishment.name }}<div class="sub">{{ claim.establishment.code }} · {{ claim.establishment.get_status_display }} · EDLI {% if claim.establishment.edli_exempted %}exempted{% else %}un-exempted{% endif %}</div></dd>
+      <dt>AEO office</dt><dd>{{ claim.establishment.aeo_office|default:"—" }}</dd>
+      <dt>Accounts group</dt><dd>{{ claim.accounts_group|default:"—" }}</dd>
+      <dt>e-File no.</dt><dd>{{ claim.efile_no|default:"—" }}</dd>
+      <dt>Claimant</dt><dd>{{ claim.claimant_name }}{% if claim.claimant_relation %} ({{ claim.claimant_relation }}){% endif %}<div class="sub">{{ claim.claimant_address|linebreaksbr }}{% if claim.claimant_mobile %}<br>☎ {{ claim.claimant_mobile }}{% endif %}</div></dd>
+      <dt>Dealing Asst.</dt><dd>{{ claim.assigned_to.display_name|default:"—" }}</dd>
+      {% if claim.is_open %}<dt>Pending for</dt><dd>{{ claim.age_days }} days since receipt · {{ claim.days_in_stage }} at this stage</dd>{% endif %}
+      {% if claim.remarks %}<dt>Remarks</dt><dd>{{ claim.remarks }}</dd>{% endif %}
+    </dl>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>File movement</h2></div>
+    <ul class="timeline">
+      {% for e in events %}<li><span class="when">{{ e.at|date:"d.m.Y H:i" }}</span>
+        <span>{{ e.action }}<span class="sub">{{ e.user.display_name|default:"system" }}{% if e.note %} — {{ e.note }}{% endif %}</span></span></li>{% endfor %}
+    </ul>
+  </section>
+
+  {% if earlier_rounds %}
+  <section class="card"><div class="card-head"><h2>Earlier scrutiny rounds</h2></div>
+    <ul class="plain">{% for s in earlier_rounds %}<li>Round {{ s.round_no }} – {{ s.get_action_display }} <a target="_blank" href="{% url 'checklist_print_round' claim.pk s.round_no %}">checklist</a></li>{% endfor %}</ul></section>
+  {% endif %}
+
+  {% if perms.close %}
+  <details class="card no-print closebox"><summary>Close / return this claim without settlement</summary>
+    <form method="post" action="{% url 'claim_action' claim.pk 'close' %}">{% csrf_token %}
+      <textarea name="note" rows="2" placeholder="Reason" required></textarea>
+      <button class="btn btn-sm btn-danger">Close claim</button></form></details>
+  {% endif %}
+</aside>
+</div>
+{% endblock %}

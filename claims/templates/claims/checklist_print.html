@@ -1,0 +1,48 @@
+{% load static cell %}<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Checklist – {{ claim.diary_no }}</title>
+<link rel="stylesheet" href="{% static 'claims/app.css' %}">
+</head>
+<body class="print-doc">
+<div class="printbar no-print"><a class="btn" href="{% url 'claim_detail' claim.pk %}">← Back</a>
+  <button class="btn btn-primary" onclick="window.print()">Print</button></div>
+<article class="sheet checksheet">
+  <div class="pg">Page 1 of 2</div>
+  <table class="chk">
+    <tr><td colspan="4" class="chk-title"><span>AG: {{ claim.accounts_group }}</span><strong>DEATH CLAIMS CHECKLIST</strong><span>{{ claim.diary_no }}{% if scrutiny.round_no > 1 %} · round {{ scrutiny.round_no }}{% endif %}</span></td></tr>
+    <tr><td colspan="4"><strong>UAN:</strong> {{ claim.uan|default:"—" }} &nbsp;&nbsp;&nbsp; <strong>Member Name &amp; PF Account Number:</strong> {{ claim.member_name }} – {{ claim.pf_no }}</td></tr>
+    <tr><th class="sn">S.No.</th><th colspan="2">Checking Points</th><th class="rm">Remarks</th></tr>
+    {% for r in page1 %}
+      {% if r.p.special == "compare" %}
+      <tr><td class="sn" rowspan="{{ compare|length|add:2 }}">3</td><th>DETAILS</th><th>AS PER OFFICE RECORDS</th><th>AS PER CLAIM FORMS &amp; ENCLOSURES</th></tr>
+      {% for c in compare %}<tr><td>{{ c.label }}</td><td>{{ c.off }}</td><td>{{ c.clm }}</td></tr>{% endfor %}
+      <tr><td>LAST CONTRIBUTED MONTH (LCM) AS PER MEMBER LEDGER</td><td colspan="2">{{ lcm }}</td></tr>
+      {% else %}
+      <tr><td class="sn">{{ r.p.no }}</td><td colspan="2">{{ r.p.title }}</td><td class="rm">{% for line in r.remarks %}{{ line }}{% if not forloop.last %}; {% endif %}{% endfor %}</td></tr>
+      {% endif %}
+    {% endfor %}
+  </table>
+</article>
+<article class="sheet checksheet">
+  <div class="pg">Page 2 of 2</div>
+  <table class="chk">
+    <tr><td colspan="3"><strong>Verify, whether the following enclosures duly attested by the employer are available along with the claim forms:</strong></td></tr>
+    {% for r in page2 %}
+    <tr><td class="sn">{{ r.p.no }}</td><td>{{ r.p.title }}</td><td class="rm">{% for line in r.remarks %}{{ line }}{% if not forloop.last %}; {% endif %}{% endfor %}</td></tr>
+    {% endfor %}
+  </table>
+  <div class="chk-submit">
+    <p><strong>Submitted:</strong></p>
+    <p><span class="box">{% if inward %}✓{% endif %}</span> a) The Death claim forms may be Inwarded.</p>
+    <p class="or">(OR)</p>
+    <p><span class="box">{% if not inward %}✓{% endif %}</span> b) The Death claim forms may be returned for rectification and submission of required documents.
+      {% if not inward %}<em>— {{ scrutiny.get_action_display }}</em>{% endif %}</p>
+    {% if findings %}<p class="small"><strong>Discrepancies / action:</strong></p>
+    <ol class="small">{% for f in findings %}<li>[{{ f.route|route_short }}] {{ f.title }}</li>{% endfor %}</ol>{% endif %}
+    <table class="signs"><tr>
+      <td>Dealing Assistant<div>{{ scrutiny.prepared_by.display_name|default:"" }}{% if scrutiny.submitted_at %}<br>{{ scrutiny.submitted_at|date:"d.m.Y" }}{% endif %}</div></td>
+      <td>Section Supervisor<div>{% if scrutiny.validated_at %}{{ scrutiny.validated_by.display_name }}<br>{{ scrutiny.validated_at|date:"d.m.Y" }}{% endif %}</div></td>
+      <td>Accounts Officer<div>{% if scrutiny.approved_at %}{{ scrutiny.approved_by.display_name }}<br>{{ scrutiny.approved_at|date:"d.m.Y" }}{% endif %}</div></td></tr></table>
+  </div>
+</article>
+</body></html>

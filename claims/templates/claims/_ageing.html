@@ -1,0 +1,9 @@
+<table class="table matrix">
+  <thead><tr><th>Stage</th>{% for b in buckets %}<th class="num">{{ b }}</th>{% endfor %}<th class="num">Total</th></tr></thead>
+  <tbody>{% for r in ageing_rows %}
+    <tr><td><a href="{% url 'claim_list' %}?status={{ r.status }}">{{ r.label }}</a></td>
+      {% for n in r.cells %}<td class="num {% if not n %}zero{% elif forloop.counter >= 4 %}old{% endif %}">{{ n|default:"·" }}</td>{% endfor %}
+      <td class="num"><strong>{{ r.total }}</strong></td></tr>{% endfor %}
+  </tbody>
+  <tfoot><tr><th>All pending claims</th>{% for n in ageing_totals %}<th class="num">{{ n }}</th>{% endfor %}<th class="num">{{ ageing_total }}</th></tr></tfoot>
+</table>

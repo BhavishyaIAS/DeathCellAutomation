@@ -1,0 +1,66 @@
+{% extends "claims/base.html" %}
+{% load cell %}
+{% block title %}Reports{% endblock %}
+{% block nav_reports %}on{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div><h1>Reports</h1><p class="muted">Monitoring statements of the Death Claims Cell</p></div>
+  <div class="actions">
+    <a class="btn" href="{% url 'claim_list' %}?export=csv">Claims register (CSV)</a>
+    <a class="btn" href="{% url 'letter_list' %}?export=csv">Despatch register (CSV)</a>
+    <a class="btn" href="?export=findings">Discrepancy register (CSV)</a>
+    <button class="btn btn-primary no-print" onclick="window.print()">Print</button>
+  </div>
+</div>
+<section class="tiles tiles-5">
+  <div class="tile"><span class="tile-label">Death cases on record</span><span class="tile-value">{{ total_claims }}</span></div>
+  <div class="tile"><span class="tile-label">Cleared at first scrutiny</span><span class="tile-value">{{ clean_first_time }}</span><span class="tile-sub">inwarded without any letter</span></div>
+  <div class="tile"><span class="tile-label">Cases with discrepancies</span><span class="tile-value">{{ with_findings }}</span></div>
+  <div class="tile"><span class="tile-label">AEO references made</span><span class="tile-value">{{ aeo_refs }}</span></div>
+  <div class="tile"><span class="tile-label">U.O. notes issued</span><span class="tile-value">{{ uo_notes }}</span></div>
+</section>
+
+<div class="grid-2">
+  <section class="card">
+    <div class="card-head"><h2>Monthly abstract</h2><span class="muted">last 12 months</span></div>
+    <table class="table">
+      <thead><tr><th>Month</th><th><span class="muted">received</span></th><th class="num">Received</th><th class="num">Inwarded</th><th class="num">Settled</th><th class="num">Letters issued</th></tr></thead>
+      <tbody>{% for m in monthly %}<tr><td>{{ m.label }}</td>
+        <td class="barcell"><span class="bar-track" title="{{ m.received }} received in {{ m.label }}"><span class="bar-fill" style="width:{{ m.received|pct:monthly_max }}%"></span></span></td>
+        <td class="num">{{ m.received }}</td><td class="num">{{ m.inwarded }}</td><td class="num">{{ m.settled }}</td><td class="num">{{ m.letters }}</td></tr>{% endfor %}</tbody>
+    </table>
+  </section>
+  <div class="stack">
+    <section class="card">
+      <div class="card-head"><h2>Pendency by stage and age</h2><span class="muted">days since receipt</span></div>
+      {% include "claims/_ageing.html" %}
+    </section>
+    <section class="card">
+      <div class="card-head"><h2>Pending claims by district</h2></div>
+      <div class="bars">{% for d, n in district_rows %}
+        <a class="bar-row" href="{% url 'claim_list' %}?status=OPEN&district={{ d|urlencode }}" title="{{ n }} pending in {{ d }}"><span class="bar-label">{{ d }}</span><span class="bar-track"><span class="bar-fill" style="width:{{ n|pct:district_max }}%"></span></span><span class="bar-value">{{ n }}</span></a>
+      {% empty %}<p class="empty">No pending claims.</p>{% endfor %}</div>
+    </section>
+  </div>
+</div>
+
+<div class="grid-2">
+  <section class="card">
+    <div class="card-head"><h2>Why claims get held up</h2><span class="muted">death cases, by kind of discrepancy</span></div>
+    <div class="bars">{% for label, n in category_rows %}
+      <div class="bar-row" title="{{ n }} case(s): {{ label }}"><span class="bar-label">{{ label }}</span><span class="bar-track"><span class="bar-fill" style="width:{{ n|pct:category_max }}%"></span></span><span class="bar-value">{{ n }}</span></div>
+    {% empty %}<p class="empty">No discrepancies recorded yet.</p>{% endfor %}</div>
+  </section>
+  <section class="card">
+    <div class="card-head"><h2>Most frequent discrepancies</h2><span class="muted">cases</span></div>
+    <table class="table"><tbody>{% for t in top_titles %}<tr><td>{{ t.title }}</td><td class="num">{{ t.claims }}</td></tr>
+      {% empty %}<tr><td class="empty">Nothing yet.</td></tr>{% endfor %}</tbody></table>
+  </section>
+</div>
+<section class="card">
+  <div class="card-head"><h2>Establishments with most discrepant claims</h2><span class="muted">candidates for an awareness letter or camp</span></div>
+  <table class="table"><thead><tr><th>Establishment</th><th class="num">Cases with discrepancies</th><th class="num">Remarks raised</th></tr></thead>
+    <tbody>{% for e in estt_rows %}<tr><td>{{ e.claim__establishment__name }}</td><td class="num">{{ e.claims }}</td><td class="num">{{ e.remarks }}</td></tr>
+    {% empty %}<tr><td colspan="3" class="empty">Nothing yet.</td></tr>{% endfor %}</tbody></table>
+</section>
+{% endblock %}

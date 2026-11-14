@@ -1,0 +1,91 @@
+{% extends "claims/base.html" %}
+{% load cell %}
+{% block title %}Scrutiny – {{ claim.diary_no }}{% endblock %}
+{% block nav_claims %}on{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div><p class="crumb"><a href="{% url 'claim_detail' claim.pk %}">← {{ claim.diary_no }}</a></p>
+    <h1>Scrutiny checklist <span class="muted">· round {{ scrutiny.round_no }}</span></h1>
+    <p class="muted">{{ claim.late_name }} · {{ claim.pf_no }}{% if claim.uan %} · UAN {{ claim.uan }}{% endif %} · M/s {{ claim.establishment.name }}</p></div>
+  <div class="actions"><a class="btn" href="{% url 'checklist_print' claim.pk %}" target="_blank">Print checklist</a></div>
+</div>
+{% if not editable %}<div class="alert alert-info">The checklist is read-only: the file is at “{{ claim.get_status_display }}”.</div>{% endif %}
+
+<div class="scrutiny">
+<form method="post" id="scrutiny-form" class="checklist" data-preview="{% url 'scrutiny_preview' claim.pk %}">{% csrf_token %}
+  {% for item in points %}{% with p=item.p %}
+  <section class="point card" id="pt-{{ p.no }}">
+    <header><span class="pno">{{ p.no }}</span><h3>{{ p.title }}</h3></header>
+    <div class="point-body">
+    {% if p.special == "forms" %}
+      <p class="given">{{ claim.forms_text }} <a class="small" href="{% url 'claim_edit' claim.pk %}">change in diary entry</a></p>
+    {% elif p.special == "mode" %}
+      <p class="given">{{ claim.get_mode_display }} on {{ claim.received_on|dmy }}</p>
+    {% elif p.special == "compare" %}
+      <table class="compare">
+        <thead><tr><th>Details</th><th>As per office records</th><th>As per claim forms &amp; enclosures</th></tr></thead>
+        <tbody>{% for r in compare %}<tr>
+          <th>{{ r.label }}</th>
+          {% if r.kind == "choice" %}
+          <td><select name="off_{{ r.key }}" {% if not editable %}disabled{% endif %}><option value="">—</option>{% for k, label in r.off_choices %}<option value="{{ k }}" {% if r.off == k %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></td>
+          <td><select name="clm_{{ r.key }}" {% if not editable %}disabled{% endif %}><option value="">—</option>{% for k, label in r.clm_choices %}<option value="{{ k }}" {% if r.clm == k %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></td>
+          {% else %}
+          <td><input type="{{ r.kind }}" name="off_{{ r.key }}" value="{{ r.off }}" {% if not editable %}disabled{% endif %}></td>
+          <td><input type="{{ r.kind }}" name="clm_{{ r.key }}" value="{{ r.clm }}" {% if not editable %}disabled{% endif %}></td>
+          {% endif %}</tr>{% endfor %}
+        </tbody>
+      </table>
+      <p class="help">Leave “Date of leaving” blank in the office column if the date of exit is not updated in the system.</p>
+    {% endif %}
+    {% if p.special == "previous" %}
+      <table class="compare prev" id="prev-table">
+        <thead><tr><th>Past PF account / member ID</th><th>Establishment</th><th>PF office <span class="help">blank = RO Kadapa</span></th><th>From</th><th>To</th><th>Transferred to present A/c?</th><th></th></tr></thead>
+        <tbody>
+        {% for r in prev_services %}<tr>
+          <td><input type="text" name="prev_member_id" value="{{ r.member_id }}"></td>
+          <td><input type="text" name="prev_estt" value="{{ r.estt }}"></td>
+          <td><input type="text" name="prev_office" value="{{ r.office }}" placeholder="e.g. Hyderabad"></td>
+          <td><input type="date" name="prev_from" value="{{ r.from }}"></td>
+          <td><input type="date" name="prev_to" value="{{ r.to }}"></td>
+          <td><select name="prev_transferred"><option value="NO" {% if r.transferred != "YES" %}selected{% endif %}>No</option><option value="YES" {% if r.transferred == "YES" %}selected{% endif %}>Yes</option></select></td>
+          <td><button type="button" class="btn btn-ghost btn-sm" data-remove-row>✕</button></td></tr>{% endfor %}
+        </tbody>
+      </table>
+      <template id="prev-row"><tr>
+          <td><input type="text" name="prev_member_id"></td>
+          <td><input type="text" name="prev_estt"></td>
+          <td><input type="text" name="prev_office" placeholder="e.g. Hyderabad"></td>
+          <td><input type="date" name="prev_from"></td>
+          <td><input type="date" name="prev_to"></td>
+          <td><select name="prev_transferred"><option value="NO">No</option><option value="YES">Yes</option></select></td>
+          <td><button type="button" class="btn btn-ghost btn-sm" data-remove-row>✕</button></td></tr></template>
+      <div class="rowline">{% if editable %}<button type="button" class="btn btn-sm" id="add-prev">＋ Add past service</button>{% endif %}
+        <label class="check"><input type="checkbox" name="no_prev_service" value="1" {% if no_prev_service %}checked{% endif %} {% if not editable %}disabled{% endif %}> No previous service found in MIS</label></div>
+    {% endif %}
+    {% for item in item.fields %}{% include "claims/_field.html" %}{% endfor %}
+    <div class="fact" data-fact="{{ p.no }}">{{ item.fact }}</div>
+    <label class="remark"><span>Remarks</span><input type="text" name="remark_{{ p.no }}" value="{{ item.remark }}" {% if not editable %}disabled{% endif %}></label>
+    </div>
+  </section>
+  {% endwith %}{% endfor %}
+  <section class="point card"><header><span class="pno">＋</span><h3>Office-side adjustments not covered by the checklist</h3></header>
+    <div class="point-body">{% for item in extra %}{% include "claims/_field.html" %}{% endfor %}</div></section>
+
+  {% if editable %}<div class="formactions sticky-actions">
+    <a class="btn btn-ghost" href="{% url 'claim_detail' claim.pk %}">Cancel</a>
+    <button class="btn" name="then" value="">Save</button>
+    <button class="btn btn-primary" name="then" value="review">Save &amp; review findings →</button>
+  </div>{% endif %}
+</form>
+
+<aside class="sidepanel no-print">
+  <div class="card">
+    <div class="card-head"><h2>Scrutiny result</h2><span class="muted small" id="preview-state">updates as you fill</span></div>
+    <div id="preview">{% include "claims/_findings_preview.html" %}</div>
+  </div>
+  <nav class="card jump"><h2>Jump to point</h2>
+    <div>{% for item in points %}<a href="#pt-{{ item.p.no }}">{{ item.p.no }}</a>{% endfor %}</div></nav>
+</aside>
+</div>
+{% endblock %}
+{% block scripts %}<script>DeathCell.scrutinyForm();</script>{% endblock %}

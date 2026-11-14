@@ -1,0 +1,14 @@
+{% with f=item.f v=item.value %}
+<div class="fld fld-{{ f.kind }}">
+  <span class="fld-label">{{ f.label }}</span>
+  {% if f.is_choice and f.choices|length <= 4 %}
+  <span class="seg">{% for k, label in f.choices %}<label><input type="radio" name="{{ f.name }}" value="{{ k }}" {% if v == k %}checked{% endif %} {% if not editable %}disabled{% endif %}><span>{{ label }}</span></label>{% endfor %}</span>
+  {% elif f.is_choice %}
+  <select name="{{ f.name }}" {% if not editable %}disabled{% endif %}><option value="">— select —</option>{% for k, label in f.choices %}<option value="{{ k }}" {% if v == k %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+  {% elif f.kind == "date" %}<input type="date" name="{{ f.name }}" value="{{ v }}" {% if not editable %}disabled{% endif %}>
+  {% elif f.kind == "month" %}<input type="month" name="{{ f.name }}" value="{{ v }}" {% if not editable %}disabled{% endif %}>
+  {% elif f.kind == "number" %}<input type="number" step="0.1" min="0" name="{{ f.name }}" value="{{ v }}" {% if not editable %}disabled{% endif %}>
+  {% else %}<input type="text" name="{{ f.name }}" value="{{ v }}" placeholder="{{ f.help }}" {% if not editable %}disabled{% endif %}>{% endif %}
+  {% if f.help and f.kind != "text" %}<span class="help">{{ f.help }}</span>{% endif %}
+</div>
+{% endwith %}

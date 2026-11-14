@@ -1,0 +1,30 @@
+{% extends "claims/base.html" %}
+{% load cell %}
+{% block title %}Letters & notes{% endblock %}
+{% block nav_letters %}on{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div><h1>Letters, AEO references &amp; U.O. notes</h1><p class="muted">Despatch register of the cell · {{ total }} communication{{ total|pluralize }}</p></div>
+  <div class="actions"><a class="btn" href="?{% qs_replace params export='csv' %}">Download CSV</a></div>
+</div>
+<form class="filters card" method="get">
+  <label>Search<input type="search" name="q" value="{{ params.q }}" placeholder="Letter no., member, diary no., addressee"></label>
+  <label>Type<select name="kind"><option value="">All</option>{% for k, v in kinds %}<option value="{{ k }}" {% if params.kind == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+  <label>Status<select name="status"><option value="">All</option><option value="OVERDUE" {% if params.status == "OVERDUE" %}selected{% endif %}>Reply overdue</option>{% for k, v in statuses %}<option value="{{ k }}" {% if params.status == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></label>
+  <button class="btn">Apply</button><a class="btn btn-ghost" href="{% url 'letter_list' %}">Clear</a>
+</form>
+<section class="card flush">
+  <table class="table">
+    <thead><tr><th>No. &amp; date</th><th>Type</th><th>Death case</th><th>Addressed to</th><th>Status</th><th>Issued</th><th>Reply due</th></tr></thead>
+    <tbody>{% for l in letters %}
+      <tr><td><a href="{% url 'letter_view' l.pk %}">{{ l.number|default:"(draft)" }}</a><div class="sub">{{ l.letter_date|dmy }}</div></td>
+        <td>{{ l.title }}</td>
+        <td><a href="{% url 'claim_detail' l.claim_id %}">{{ l.claim.diary_no }}</a><div class="sub">{{ l.claim.member_name }}</div></td>
+        <td>{{ l.to_block|truncatechars:70 }}</td>
+        <td><span class="pill pill-{% if l.is_overdue %}bad{% else %}{{ l.status|tone }}{% endif %}">{% if l.is_overdue %}Reply overdue {{ l.days_overdue }} d{% else %}{{ l.get_status_display }}{% endif %}</span></td>
+        <td>{{ l.issued_on|dmy }}</td><td>{{ l.due_on|dmy }}</td></tr>
+      {% empty %}<tr><td colspan="7" class="empty">No communications match.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

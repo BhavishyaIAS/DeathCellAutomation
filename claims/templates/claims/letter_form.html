@@ -1,0 +1,23 @@
+{% extends "claims/base.html" %}
+{% block title %}Edit {{ comm.title }}{% endblock %}
+{% block nav_letters %}on{% endblock %}
+{% block content %}
+<div class="pagehead"><div><p class="crumb"><a href="{% url 'letter_view' comm.pk %}">← Back to the letter</a></p>
+  <h1>Edit – {{ comm.title }}</h1><p class="muted">{{ claim.late_name }} · {{ claim.diary_no }}. Once edited by hand, this draft is no longer overwritten when findings change.</p></div></div>
+<form method="post" class="card formgrid narrow">{% csrf_token %}
+  {{ form.non_field_errors }}
+  <div class="row"><label>{{ form.number.label }}{{ form.number }}<span class="help">{{ form.number.help_text }}</span></label>
+    <label>{{ form.letter_date.label }}{{ form.letter_date }}</label></div>
+  <label>{{ form.to_block.label }}{{ form.to_block }}</label>
+  <label>{{ form.subject.label }}{{ form.subject }}</label>
+  <label>{{ form.reference.label }}{{ form.reference }}</label>
+  <label>{{ form.salutation.label }}{{ form.salutation }}</label>
+  <label>Opening paragraph{{ form.intro }}</label>
+  <label>{{ form.points_text.label }}{{ form.points_text }}<span class="help">{{ form.points_text.help_text }}</span></label>
+  <label>Closing paragraphs{{ form.closing }}<span class="help">{{ form.closing.help_text }}</span></label>
+  <label>Copy to{{ form.copy_to }}<span class="help">{{ form.copy_to.help_text }}</span></label>
+  <label>{{ form.signatory.label }}{{ form.signatory }}</label>
+  {% if form.errors %}<div class="alert alert-error">{{ form.errors }}</div>{% endif %}
+  <div class="formactions"><a class="btn btn-ghost" href="{% url 'letter_view' comm.pk %}">Cancel</a><button class="btn btn-primary">Save draft</button></div>
+</form>
+{% endblock %}

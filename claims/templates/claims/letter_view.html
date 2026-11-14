@@ -1,0 +1,83 @@
+{% extends "claims/base.html" %}
+{% load static cell %}
+{% block title %}{{ comm.title }} – {{ claim.diary_no }}{% endblock %}
+{% block nav_letters %}on{% endblock %}
+{% block body_class %}letter-page{% endblock %}
+{% block content %}
+<div class="pagehead no-print">
+  <div><p class="crumb"><a href="{% url 'claim_detail' claim.pk %}">← {{ claim.diary_no }} · {{ claim.member_name }}</a></p>
+    <h1>{{ comm.title }}</h1>
+    <p><span class="pill pill-{% if comm.is_overdue %}bad{% else %}{{ comm.status|tone }}{% endif %}">{% if comm.is_overdue %}Reply overdue by {{ comm.days_overdue }} days{% else %}{{ comm.get_status_display }}{% endif %}</span>
+      {% if comm.issued_on %}<span class="muted">Issued {{ comm.issued_on|dmy }}{% if comm.dispatch_mode %} ({{ comm.dispatch_mode }}){% endif %} · reply due {{ comm.due_on|dmy }}</span>{% endif %}
+      {% if comm.reply_on %}<span class="muted">· reply received {{ comm.reply_on|dmy }}{% if comm.reply_note %} — {{ comm.reply_note }}{% endif %}</span>{% endif %}</p></div>
+  <div class="actions">
+    {% if can_edit %}<a class="btn" href="{% url 'letter_edit' comm.pk %}">Edit</a>{% endif %}
+    <a class="btn" href="{% url 'letter_download' comm.pk %}">Download Word</a>
+    <button class="btn btn-primary" onclick="window.print()">Print / save PDF</button>
+  </div>
+</div>
+
+<div class="letter-layout">
+<article class="sheet {% if comm.status == 'DRAFT' %}draft{% endif %}">
+  <table class="sheet-frame"><tbody><tr><td>
+  {% if comm.is_uo %}
+  <header class="uo-head"><div>EMPLOYEES' PROVIDENT FUND ORGANISATION</div><div>REGIONAL OFFICE, KADAPA</div><div class="cell">DEATH CLAIMS CELL</div><h2>U.O. NOTE</h2></header>
+  {% else %}
+  <img class="letterhead" src="{% static 'claims/letterhead.jpg' %}" alt="Employees' Provident Fund Organisation, Regional Office, Kadapa">
+  {% endif %}
+  <div class="l-no"><span>No. {{ number }}</span><span>Date: {{ date }}</span></div>
+  <div class="l-to">To<br>{% for line in to_lines %}{{ line }}<br>{% endfor %}</div>
+  <table class="l-sub">
+    <tr><td>Sub:</td><td><strong>{{ comm.subject }}</strong></td></tr>
+    {% for ref in references %}<tr><td>{% if forloop.first %}Ref:{% endif %}</td><td>{% if references|length > 1 %}{{ forloop.counter }}. {% endif %}{{ ref }}</td></tr>{% endfor %}
+  </table>
+  <div class="l-stars">****</div>
+  {% if comm.salutation %}<p class="l-sal">{{ comm.salutation }}</p>{% endif %}
+  <p class="l-para">{{ comm.intro }}</p>
+  <ol class="l-points">{% for p in comm.points %}<li>{{ p }}</li>{% endfor %}</ol>
+  {% for p in closing %}<p class="l-para {% if 'MOST URGENT' in p %}urgent{% endif %}">{{ p }}</p>{% endfor %}
+  <div class="l-sign">{% if not comm.is_uo %}Yours faithfully,{% endif %}<div class="gap"></div>{{ signatory }},<br>{{ signatory_office }}</div>
+  {% if copies %}<div class="l-copy"><strong><u>COPY TO:</u></strong>
+    <ol>{% for block in copies %}<li>{% for line in block %}{{ line }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</li>{% endfor %}</ol></div>{% endif %}
+  </td></tr></tbody>
+  <tfoot><tr><td><div class="foot-space"></div></td></tr></tfoot></table>
+  {% if footer_lines %}<footer class="l-foot">{% for line in footer_lines %}<div>{{ line }}</div>{% endfor %}</footer>{% endif %}
+</article>
+
+<aside class="stack no-print">
+  {% if comm.status == "DRAFT" %}
+  <section class="card"><h2>Draft</h2>
+    {% if comm.reminder_of_id %}
+      <p class="muted">A reminder needs the Accounts Officer's approval before issue.</p>
+      {% if can_approve %}<form method="post" action="{% url 'letter_action' comm.pk 'approve' %}">{% csrf_token %}<button class="btn btn-primary btn-block">Approve &amp; number</button></form>{% endif %}
+    {% else %}
+      <p class="muted">This draft follows the findings of the scrutiny. It is numbered and dated when the Accounts Officer approves the scrutiny.</p>
+      {% if can_edit %}<form method="post" action="{% url 'letter_action' comm.pk 'regenerate' %}">{% csrf_token %}<button class="btn btn-block">Regenerate from findings</button></form>{% endif %}
+    {% endif %}
+  </section>
+  {% elif comm.status == "APPROVED" %}
+  <section class="card"><h2>Record issue</h2>
+    <p class="muted">Print, obtain signature, despatch – then record it here to start the reply clock ({{ OFFICE.reply_days }} days).</p>
+    {% if is_staff_user %}<form method="post" action="{% url 'letter_action' comm.pk 'issue' %}">{% csrf_token %}
+      <label>Issued on<input type="date" name="issued_on" value="{{ today|date:'Y-m-d' }}"></label>
+      <label>Mode<select name="dispatch_mode"><option>Speed post</option><option>Registered post</option><option>e-Mail</option><option>e-Office</option><option>By hand</option></select></label>
+      <button class="btn btn-primary btn-block">Mark as issued</button></form>{% endif %}
+  </section>
+  {% elif comm.status == "ISSUED" %}
+  <section class="card"><h2>Record reply</h2>
+    {% if is_staff_user %}<form method="post" action="{% url 'letter_action' comm.pk 'reply' %}">{% csrf_token %}
+      <label>Reply received on<input type="date" name="reply_on" value="{{ today|date:'Y-m-d' }}"></label>
+      <label>Gist of reply / report<textarea name="reply_note" rows="3"></textarea></label>
+      <label class="check"><input type="checkbox" name="resolve_all" value="1"> All points of this letter are complied</label>
+      <button class="btn btn-primary btn-block">Reply received</button></form>
+    <form method="post" action="{% url 'letter_action' comm.pk 'remind' %}" class="mt">{% csrf_token %}
+      <button class="btn btn-block">Draft a reminder</button></form>{% endif %}
+  </section>
+  {% endif %}
+  {% if comm.reminder_of %}<section class="card"><h2>Reminder to</h2><p><a href="{% url 'letter_view' comm.reminder_of.pk %}">{{ comm.reminder_of.number }}</a> dated {{ comm.reminder_of.letter_date|dmy }}</p></section>{% endif %}
+  {% with reminders=comm.reminders.all %}{% if reminders %}<section class="card"><h2>Reminders</h2><ul class="plain">{% for r in reminders %}<li><a href="{% url 'letter_view' r.pk %}">Reminder {{ r.reminder_no }}</a> – {{ r.get_status_display }}</li>{% endfor %}</ul></section>{% endif %}{% endwith %}
+  {% if user.role == "AO" or user.role == "ADMIN" %}{% if comm.status == "DRAFT" or comm.status == "APPROVED" %}
+  <form method="post" action="{% url 'letter_action' comm.pk 'cancel' %}" onsubmit="return confirm('Cancel this communication?')">{% csrf_token %}<button class="btn btn-ghost btn-sm">Cancel this communication</button></form>{% endif %}{% endif %}
+</aside>
+</div>
+{% endblock %}

@@ -1,0 +1,85 @@
+{% extends "claims/base.html" %}
+{% load cell %}
+{% block title %}Dashboard{% endblock %}
+{% block nav_dashboard %}on{% endblock %}
+{% block content %}
+<div class="pagehead">
+  <div><h1>Dashboard</h1>
+    <p class="muted">Live position of the cell <span class="live" id="live-at" title="Refreshes every 30 seconds">● live</span></p></div>
+  <div class="actions">
+    {% if user.role != "AO" %}<a class="btn btn-primary" href="{% url 'claim_new' %}">＋ Register a claim</a>{% endif %}
+  </div>
+</div>
+
+<section class="tiles" id="tiles">
+  <a class="tile" href="{% url 'claim_list' %}?status=OPEN"><span class="tile-label">Received this month</span><span class="tile-value" data-k="received_month">{{ summary.received_month }}</span><span class="tile-sub">all forms, by diary date</span></a>
+  <a class="tile" href="{% url 'claim_list' %}?status=UNDER_SCRUTINY"><span class="tile-label">Under scrutiny (DA)</span><span class="tile-value" data-k="in_scrutiny">{{ summary.in_scrutiny }}</span><span class="tile-sub">incl. scrutiny not started</span></a>
+  <a class="tile" href="{% url 'claim_list' %}?status=WITH_SS"><span class="tile-label">With Section Supervisor</span><span class="tile-value" data-c="WITH_SS">{{ summary.counts.WITH_SS }}</span><span class="tile-sub">awaiting validation</span></a>
+  <a class="tile" href="{% url 'claim_list' %}?status=WITH_AO"><span class="tile-label">With Accounts Officer</span><span class="tile-value" data-c="WITH_AO">{{ summary.counts.WITH_AO }}</span><span class="tile-sub">awaiting approval</span></a>
+  <a class="tile tile-warn" href="{% url 'claim_list' %}?status=PENDING_COMPLIANCE"><span class="tile-label">Pending compliance</span><span class="tile-value" data-c="PENDING_COMPLIANCE">{{ summary.counts.PENDING_COMPLIANCE }}</span><span class="tile-sub">employer · AEO · accounts</span></a>
+  <a class="tile" href="{% url 'claim_list' %}?status=READY_FOR_INWARD"><span class="tile-label">Ready for inward</span><span class="tile-value" data-c="READY_FOR_INWARD">{{ summary.counts.READY_FOR_INWARD }}</span><span class="tile-sub">approved by AO</span></a>
+  <a class="tile" href="{% url 'claim_list' %}?status=INWARDED"><span class="tile-label">Inwarded</span><span class="tile-value" data-c="INWARDED">{{ summary.counts.INWARDED }}</span><span class="tile-sub">under settlement</span></a>
+  <a class="tile" href="{% url 'claim_list' %}?status=SETTLED"><span class="tile-label">Settled this month</span><span class="tile-value" data-k="settled_month">{{ summary.settled_month }}</span><span class="tile-sub">all forms disposed</span></a>
+</section>
+
+<div class="grid-2">
+  <section class="card">
+    <div class="card-head"><h2>My work <span class="count" data-k="queue">{{ summary.queue }}</span></h2>
+      <span class="muted">Claims waiting at your level, oldest first</span></div>
+    {% if queue %}
+    <table class="table">
+      <thead><tr><th>Diary no.</th><th>Member</th><th>Establishment</th><th>Stage</th><th class="num">Age</th></tr></thead>
+      <tbody>{% for c in queue %}
+        <tr><td><a href="{% url 'claim_detail' c.pk %}">{{ c.diary_no }}</a></td>
+          <td>{{ c.member_name }}<div class="sub">{{ c.pf_no }}</div></td>
+          <td>{{ c.establishment.name }}</td>
+          <td><span class="pill pill-{{ c.status|tone }}">{{ c.get_status_display }}</span></td>
+          <td class="num">{{ c.age_days }} d</td></tr>{% endfor %}
+      </tbody>
+    </table>
+    {% else %}<p class="empty">Nothing is waiting on you.</p>{% endif %}
+  </section>
+
+  <div class="stack">
+    <section class="card">
+      <div class="card-head"><h2>Pending compliance – waiting on</h2><span class="muted">claims</span></div>
+      {% if pending_with %}<div class="bars">
+        {% for label, route, n in pending_with %}
+        <a class="bar-row" href="{% url 'claim_list' %}?pending_with={{ route }}" title="{{ n }} claim(s) waiting on {{ label }}">
+          <span class="bar-label">{{ label }}</span>
+          <span class="bar-track"><span class="bar-fill" style="width:{{ n|pct:pending_with_max }}%"></span></span>
+          <span class="bar-value">{{ n }}</span></a>{% endfor %}
+      </div>{% else %}<p class="empty">No claim is held up for compliance.</p>{% endif %}
+    </section>
+    <section class="card">
+      <div class="card-head"><h2>Letters needing attention</h2></div>
+      {% if overdue_letters or to_issue %}
+      <table class="table">
+        <tbody>
+        {% for l in to_issue %}<tr><td><a href="{% url 'letter_view' l.pk %}">{{ l.title }}</a><div class="sub">{{ l.claim.member_name }} · {{ l.claim.diary_no }}</div></td>
+          <td><span class="pill pill-info">Approved – to be issued</span></td></tr>{% endfor %}
+        {% for l in overdue_letters %}<tr><td><a href="{% url 'letter_view' l.pk %}">{{ l.title }}</a><div class="sub">{{ l.claim.member_name }} · {{ l.claim.diary_no }}</div></td>
+          <td><span class="pill pill-bad">Reply overdue {{ l.days_overdue }} d</span></td></tr>{% endfor %}
+        </tbody>
+      </table>{% else %}<p class="empty">No letter is awaiting issue or overdue for reply.</p>{% endif %}
+    </section>
+  </div>
+</div>
+
+<div class="grid-2">
+  <section class="card">
+    <div class="card-head"><h2>Pendency by stage and age</h2><span class="muted">days since receipt</span></div>
+    {% include "claims/_ageing.html" %}
+  </section>
+  <section class="card">
+    <div class="card-head"><h2>Recent activity</h2></div>
+    <ul class="timeline compact">
+      {% for e in events %}<li><span class="when">{{ e.at|date:"d.m H:i" }}</span>
+        <span><a href="{% url 'claim_detail' e.claim_id %}">{{ e.claim.diary_no }}</a> · {{ e.action }}
+        <span class="sub">{{ e.claim.member_name }}{% if e.user %} · {{ e.user.display_name }}{% endif %}</span></span></li>
+      {% empty %}<li class="empty">No activity yet.</li>{% endfor %}
+    </ul>
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}<script>DeathCell.liveSummary("{% url 'api_summary' %}");</script>{% endblock %}

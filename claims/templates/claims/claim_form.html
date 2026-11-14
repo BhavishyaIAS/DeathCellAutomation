@@ -1,0 +1,58 @@
+{% extends "claims/base.html" %}
+{% block title %}{% if claim %}Edit {{ claim.diary_no }}{% else %}Register a claim{% endif %}{% endblock %}
+{% block nav_claims %}on{% endblock %}
+{% block content %}
+<div class="pagehead"><div>
+  <h1>{% if claim %}Correct diary entry – {{ claim.diary_no }}{% else %}Register a death claim{% endif %}</h1>
+  <p class="muted">Diary entry made on receipt of the claim forms by post or in person. The diary number is allotted automatically.</p></div></div>
+<form method="post" class="card formgrid">{% csrf_token %}
+  {{ form.non_field_errors }}
+  <fieldset><legend>Receipt</legend>
+    <div class="row">
+      <label>{{ form.received_on.label }}{{ form.received_on }}{{ form.received_on.errors }}</label>
+      <label>{{ form.mode.label }}{{ form.mode }}</label>
+      <label>{{ form.efile_no.label }}{{ form.efile_no }}</label>
+      <label>{{ form.assigned_to.label }}{{ form.assigned_to }}</label>
+    </div>
+    <div class="row checks"><span class="lbl">Claim forms received</span>
+      <label class="check">{{ form.form_20 }} Form 20 (PF)</label>
+      <label class="check">{{ form.form_10d }} Form 10D (Pension)</label>
+      <label class="check">{{ form.form_5if }} Form 5(IF) (EDLI)</label>
+      <label class="check">{{ form.form_10c }} Form 10C (W/B)</label>
+    </div>
+  </fieldset>
+  <fieldset><legend>Deceased member</legend>
+    <div class="row">
+      <label class="wide">{{ form.member_name.label }}{{ form.member_name }}{{ form.member_name.errors }}</label>
+      <label>{{ form.gender.label }}{{ form.gender }}</label>
+      <label>{{ form.date_of_death.label }}{{ form.date_of_death }}{{ form.date_of_death.errors }}</label>
+    </div>
+    <div class="row">
+      <label>{{ form.uan.label }}{{ form.uan }}{{ form.uan.errors }}</label>
+      <label>{{ form.pf_no.label }}{{ form.pf_no }}{{ form.pf_no.errors }}</label>
+      <label>{{ form.accounts_group.label }}{{ form.accounts_group }}</label>
+    </div>
+    <div class="row">
+      <label class="wide">{{ form.establishment.label }}{{ form.establishment }}{{ form.establishment.errors }}
+        <span class="help">Not in the list? <a href="{% url 'establishment_new' %}?next=claim_new">Add the establishment</a> first.</span></label>
+    </div>
+  </fieldset>
+  <fieldset><legend>Claimant</legend>
+    <div class="row">
+      <label class="wide">{{ form.claimant_name.label }}{{ form.claimant_name }}{{ form.claimant_name.errors }}</label>
+      <label>{{ form.claimant_relation.label }}{{ form.claimant_relation }}</label>
+      <label>{{ form.claimant_mobile.label }}{{ form.claimant_mobile }}</label>
+    </div>
+    <div class="row">
+      <label class="wide">{{ form.claimant_address.label }}{{ form.claimant_address }}<span class="help">As it should appear on letters – one line per row.</span></label>
+      <label class="wide">{{ form.remarks.label }}{{ form.remarks }}</label>
+    </div>
+  </fieldset>
+  <div class="formactions">
+    <a class="btn btn-ghost" href="{% if claim %}{% url 'claim_detail' claim.pk %}{% else %}{% url 'claim_list' %}{% endif %}">Cancel</a>
+    {% if claim %}<button class="btn btn-primary">Save</button>
+    {% else %}<button class="btn" name="then" value="">Register only</button>
+    <button class="btn btn-primary" name="then" value="scrutiny">Register &amp; start scrutiny →</button>{% endif %}
+  </div>
+</form>
+{% endblock %}

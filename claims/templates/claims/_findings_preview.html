@@ -1,0 +1,33 @@
+{% load cell %}
+{% if result.missing and result.action == "INWARD" %}
+<div class="verdict">
+  <span class="verdict-label">Proposed action</span>
+  <strong>Checklist incomplete – no proposal yet</strong>
+</div>
+{% else %}
+<div class="verdict verdict-{{ result.action }}">
+  <span class="verdict-label">Proposed action{% if result.missing %} (so far){% endif %}</span>
+  <strong>{{ action_label }}</strong>
+</div>
+{% endif %}
+{% if result.missing %}
+<details class="missing" open>
+  <summary>{{ result.missing|length }} checklist item{{ result.missing|length|pluralize }} unanswered</summary>
+  <ul>{% for m in result.missing %}<li>{{ m }}</li>{% endfor %}</ul>
+</details>
+{% endif %}
+{% if result.findings %}
+<ol class="preview-findings">
+  {% for f in result.findings %}
+  <li class="route-{{ f.route }}"><span class="tag tag-{{ f.route }}">{{ f.route|route_short }}</span>
+    <strong>{{ f.title }}</strong>{% if f.point %}<span class="pt">pt. {{ f.point }}</span>{% endif %}</li>
+  {% endfor %}
+</ol>
+{% elif not result.missing %}
+<p class="ok">✓ No discrepancy found. The claim forms may be inwarded.</p>
+{% else %}
+<p class="muted small">No discrepancy found so far.</p>
+{% endif %}
+{% if result.facts %}
+<dl class="facts">{% for point, text in result.facts.items %}<dt>pt. {{ point }}</dt><dd>{{ text }}</dd>{% endfor %}</dl>
+{% endif %}

@@ -1,0 +1,11 @@
+{% extends "claims/base.html" %}
+{% block title %}Establishment{% endblock %}
+{% block nav_estt %}on{% endblock %}
+{% block content %}
+<div class="pagehead"><div><h1>{% if instance %}{{ instance.name }}{% else %}Add establishment{% endif %}</h1></div></div>
+<form method="post" class="card formgrid narrow">{% csrf_token %}
+  {{ form.non_field_errors }}
+  {% for field in form %}<label {% if field.field.widget.input_type == "checkbox" %}class="check"{% endif %}>{% if field.field.widget.input_type == "checkbox" %}{{ field }} {{ field.label|capfirst }}{% else %}{{ field.label|capfirst }}{{ field }}{% endif %}{{ field.errors }}</label>{% endfor %}
+  <div class="formactions"><a class="btn btn-ghost" href="{% url 'establishment_list' %}">Cancel</a><button class="btn btn-primary">Save</button></div>
+</form>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% load static cell %}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Death Claims Cell{% endblock %} · EPFO {{ OFFICE.name }}</title>
+<link rel="stylesheet" href="{% static 'claims/app.css' %}">
+</head>
+<body class="{% block body_class %}{% endblock %}">
+{% if user.is_authenticated %}
+<header class="topbar no-print">
+  <a class="brand" href="{% url 'dashboard' %}">
+    <span class="brand-mark">DC</span>
+    <span><strong>Death Claims Cell</strong><small>EPFO · {{ OFFICE.name }}</small></span>
+  </a>
+  <nav class="mainnav">
+    <a href="{% url 'dashboard' %}" class="{% block nav_dashboard %}{% endblock %}">Dashboard</a>
+    <a href="{% url 'claim_list' %}" class="{% block nav_claims %}{% endblock %}">Claims</a>
+    <a href="{% url 'letter_list' %}" class="{% block nav_letters %}{% endblock %}">Letters &amp; notes</a>
+    <a href="{% url 'reports' %}" class="{% block nav_reports %}{% endblock %}">Reports</a>
+    <a href="{% url 'establishment_list' %}" class="{% block nav_estt %}{% endblock %}">Establishments</a>
+  </nav>
+  <form class="search" action="{% url 'claim_list' %}" method="get">
+    <input type="search" name="q" placeholder="Name, UAN, PF no., diary no." aria-label="Search claims">
+  </form>
+  <div class="who">
+    <span><strong>{{ user.display_name }}</strong><small>{{ user.get_role_display }}</small></span>
+    <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn btn-ghost btn-sm">Sign out</button></form>
+  </div>
+</header>
+{% endif %}
+<main class="page">
+  {% if messages %}<div class="flash no-print">
+    {% for m in messages %}<div class="alert alert-{{ m.level_tag }}">{{ m }}</div>{% endfor %}
+  </div>{% endif %}
+  {% block content %}{% endblock %}
+</main>
+<script src="{% static 'claims/app.js' %}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>
