@@ -15,6 +15,71 @@ from django.db import models, transaction
 from django.utils import timezone
 
 
+class OfficeSettings(models.Model):
+    """Working rules of the cell that the office may change from the screen.
+
+    There is one row at most.  Until it is saved for the first time the
+    defaults in settings.OFFICE apply.
+    """
+
+    reply_days = models.PositiveIntegerField(
+        "days allowed for a reply", default=15,
+        help_text="A letter, AEO reference or U.O. note shows as overdue once this "
+                  "many days have passed since it was issued. Applies to "
+                  "communications issued from now on.")
+    older_age_at_joining = models.PositiveIntegerField(
+        "age at joining that calls for a past-employment query", default=45,
+        help_text="If a member was this age or older on joining, has under 10 years' "
+                  "service and no past service is linked, the employer is asked for "
+                  "previous employment details.")
+    belated_claim_years = models.PositiveIntegerField(
+        "years after death beyond which a claim goes to the AEO", default=6)
+    letter_serial_start = models.PositiveIntegerField(
+        "next letter number to start from", default=1,
+        help_text="Set this to continue from the despatch register, e.g. 2301. "
+                  "Numbers already allotted are never reused.")
+    uo_serial_start = models.PositiveIntegerField(
+        "next U.O. note number to start from", default=1)
+    signatory = models.CharField("letters signed by", max_length=120,
+                                 default="Accounts Officer (D/C)")
+    signatory_office = models.CharField("signatory's office", max_length=120,
+                                        default="Regional Office, Kadapa.")
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
+                                   on_delete=models.SET_NULL, related_name="+")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    EDITABLE = ["reply_days", "older_age_at_joining", "belated_claim_years",
+                "letter_serial_start", "uo_serial_start", "signatory",
+                "signatory_office"]
+
+    class Meta:
+        verbose_name_plural = "office settings"
+
+    def __str__(self):
+        return "Office settings"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1  # single row
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def current(cls):
+        """The saved row, or an unsaved one carrying the configured defaults."""
+        row = cls.objects.filter(pk=1).first()
+        if row is None:
+            row = cls(**{name: settings.OFFICE[name] for name in cls.EDITABLE})
+        return row
+
+
+def office():
+    """Office configuration: settings.OFFICE with the on-screen settings on top."""
+    config = dict(settings.OFFICE)
+    row = OfficeSettings.objects.filter(pk=1).first()
+    if row is not None:
+        config.update({name: getattr(row, name) for name in OfficeSettings.EDITABLE})
+    return config
+
+
 class Role(models.TextChoices):
     DA = "DA", "Dealing Assistant"
     SS = "SS", "Section Supervisor"
@@ -477,18 +542,16 @@ class Communication(models.Model):
 
     def number_stem(self, year):
         """The letter number without its running serial."""
-        office = settings.OFFICE
         if self.is_uo:
-            return f"{office['uo_prefix']}/{self.claim.pf_tail}/{year}/"
-        return f"{office['letter_prefix']} /{year}/"
+            return f"{settings.OFFICE['uo_prefix']}/{self.claim.pf_tail}/{year}/"
+        return f"{settings.OFFICE['letter_prefix']} /{year}/"
 
     def assign_number(self, when=None):
         """Give the letter the next running number of the year (idempotent)."""
         if self.number:
             return
         when = when or timezone.localdate()
-        start = settings.OFFICE["uo_serial_start" if self.is_uo
-                                else "letter_serial_start"]
+        start = office()["uo_serial_start" if self.is_uo else "letter_serial_start"]
         with transaction.atomic():
             qs = Communication.objects.select_for_update().filter(
                 year=when.year, serial__isnull=False)
@@ -501,11 +564,11 @@ class Communication(models.Model):
             self.letter_date = when
             self.save(update_fields=["year", "serial", "number", "letter_date"])
 
-    def mark_issued(self, when, mode=""):
+    def mark_issued(self, when, mode="", due_on=None):
         self.status = self.Status.ISSUED
         self.issued_on = when
         self.dispatch_mode = mode
-        self.due_on = when + timedelta(days=settings.OFFICE["reply_days"])
+        self.due_on = due_on or when + timedelta(days=office()["reply_days"])
         self.save(update_fields=["status", "issued_on", "dispatch_mode", "due_on"])
 
 

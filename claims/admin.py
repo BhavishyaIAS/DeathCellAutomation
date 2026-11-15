@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 
 from .models import (AEOOffice, Claim, ClaimForm, Communication, Establishment, Event,
-                     Finding, Scrutiny, User)
+                     Finding, OfficeSettings, Scrutiny, User)
 
 
 @admin.register(User)
@@ -51,5 +51,5 @@ class EventAdmin(admin.ModelAdmin):
         return False
 
 
-admin.site.register([AEOOffice, Scrutiny, Finding, ClaimForm])
+admin.site.register([AEOOffice, Scrutiny, Finding, ClaimForm, OfficeSettings])
 admin.site.site_header = "Death Claims Cell – administration"

@@ -17,8 +17,6 @@ import re
 from dataclasses import dataclass, field
 from datetime import date
 
-from django.conf import settings
-
 from .checklist import (PROFILE_FIELDS, compare_display, fmt_date, fmt_month,
                         parse_date, parse_month)
 
@@ -48,7 +46,9 @@ class Ctx:
                            ("form_5if", "5IF"), ("form_10c", "10C")):
             if getattr(claim, flag):
                 forms.add(name)
-        office = settings.OFFICE
+        from .models import office as office_config  # the engine itself stays DB-free
+
+        office = office_config()
         return cls(pf_no=claim.pf_no, forms=forms, received_on=claim.received_on,
                    date_of_death=claim.date_of_death,
                    older_age=office["older_age_at_joining"],

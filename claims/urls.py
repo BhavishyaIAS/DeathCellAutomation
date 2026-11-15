@@ -26,6 +26,7 @@ urlpatterns = [
     path("letters/<int:pk>/do/<slug:action>/", views.letter_action,
          name="letter_action"),
     path("reports/", views.reports, name="reports"),
+    path("settings/", views.office_settings, name="office_settings"),
     path("establishments/", views.establishment_list, name="establishment_list"),
     path("establishments/new/", views.establishment_edit, name="establishment_new"),
     path("establishments/<int:pk>/", views.establishment_edit,

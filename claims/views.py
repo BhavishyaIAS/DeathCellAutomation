@@ -13,9 +13,10 @@ from django.views.decorators.http import require_POST
 from . import checklist as ck
 from . import letters, rules, workflow
 from .docx_export import letter_docx
-from .forms import ClaimForm, CommunicationForm, EstablishmentForm, FindingForm
+from .forms import (ClaimForm, CommunicationForm, EstablishmentForm, FindingForm,
+                    OfficeSettingsForm)
 from .models import (OPEN_STATUSES, Claim, ClaimStatus, Communication, Establishment,
-                     Event, Finding, Role, Route, Scrutiny)
+                     Event, Finding, OfficeSettings, Role, Route, Scrutiny, office)
 from .models import ClaimForm as FormRow
 from .workflow import WorkflowError
 
@@ -522,6 +523,7 @@ def letter_view(request, pk):
         and bool(comm.reminder_of_id) and request.user.has_role(Role.AO),
         "is_staff_user": request.user.has_role(Role.DA, Role.SS),
         "print_mode": request.GET.get("print") == "1",
+        "default_due": timezone.localdate() + timedelta(days=office()["reply_days"]),
     })
     return render(request, "claims/letter_view.html", context)
 
@@ -563,7 +565,7 @@ def letter_action(request, pk, action):
         _guard(request, workflow.issue_letter, comm, user,
                _date(request.POST.get("issued_on"), today),
                request.POST.get("dispatch_mode", "").strip(),
-               success="Recorded as issued.")
+               _date(request.POST.get("due_on")), success="Recorded as issued.")
     elif action == "reply":
         _guard(request, workflow.record_reply, comm, user,
                _date(request.POST.get("reply_on"), today),
@@ -687,6 +689,24 @@ def reports(request):
         .exclude(status__in=[Communication.Status.DRAFT,
                              Communication.Status.CANCELLED]).count(),
     })
+
+
+# -- office settings ---------------------------------------------------------
+@login_required
+def office_settings(request):
+    """Reply period, thresholds, numbering and signatory – Accounts Officer only."""
+    if not request.user.has_role(Role.AO):
+        messages.error(request, "Only the Accounts Officer can change office settings.")
+        return redirect("dashboard")
+    form = OfficeSettingsForm(request.POST or None, instance=OfficeSettings.current())
+    if request.method == "POST" and form.is_valid():
+        row = form.save(commit=False)
+        row.updated_by = request.user
+        row.save()
+        messages.success(request, "Office settings saved.")
+        return redirect("office_settings")
+    saved = OfficeSettings.objects.filter(pk=1).select_related("updated_by").first()
+    return render(request, "claims/office_settings.html", {"form": form, "saved": saved})
 
 
 # -- establishments ----------------------------------------------------------

@@ -4,7 +4,8 @@ from django import forms
 
 from django.utils import timezone
 
-from .models import Claim, Communication, Establishment, Finding, Role, Route, User
+from .models import (Claim, Communication, Establishment, Finding, OfficeSettings, Role,
+                     Route, User)
 
 
 class DateInput(forms.DateInput):
@@ -111,3 +112,21 @@ class FindingForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["route"].choices = Route.choices
         self.fields["other_office"].required = False
+
+
+class OfficeSettingsForm(forms.ModelForm):
+    class Meta:
+        model = OfficeSettings
+        fields = OfficeSettings.EDITABLE
+
+    def clean_reply_days(self):
+        days = self.cleaned_data["reply_days"]
+        if not 1 <= days <= 180:
+            raise forms.ValidationError("Enter a period between 1 and 180 days.")
+        return days
+
+    def clean_older_age_at_joining(self):
+        age = self.cleaned_data["older_age_at_joining"]
+        if not 18 <= age <= 58:
+            raise forms.ValidationError("Enter an age between 18 and 58.")
+        return age

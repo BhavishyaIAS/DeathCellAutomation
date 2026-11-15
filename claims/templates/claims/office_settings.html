@@ -1,0 +1,28 @@
+{% extends "claims/base.html" %}
+{% block title %}Office settings{% endblock %}
+{% block nav_settings %}on{% endblock %}
+{% block content %}
+<div class="pagehead"><div><h1>Office settings</h1>
+  <p class="muted">Working rules of the cell. Changes apply from now on; nothing already issued or approved is altered.{% if saved %} Last changed {{ saved.updated_at|date:"d.m.Y H:i" }}{% if saved.updated_by %} by {{ saved.updated_by.display_name }}{% endif %}.{% endif %}</p></div></div>
+<form method="post" class="card formgrid narrow">{% csrf_token %}
+  {{ form.non_field_errors }}
+  <fieldset><legend>Replies</legend>
+    <label>{{ form.reply_days.label|capfirst }}{{ form.reply_days }}{{ form.reply_days.errors }}<span class="help">{{ form.reply_days.help_text }} The due date can also be changed for an individual letter when it is issued.</span></label>
+  </fieldset>
+  <fieldset><legend>Scrutiny thresholds</legend>
+    <label>{{ form.older_age_at_joining.label|capfirst }}{{ form.older_age_at_joining }}{{ form.older_age_at_joining.errors }}<span class="help">{{ form.older_age_at_joining.help_text }}</span></label>
+    <label>{{ form.belated_claim_years.label|capfirst }}{{ form.belated_claim_years }}{{ form.belated_claim_years.errors }}<span class="help">Checklist point 28.</span></label>
+  </fieldset>
+  <fieldset><legend>Numbering</legend>
+    <div class="row"><label class="wide">{{ form.letter_serial_start.label|capfirst }}{{ form.letter_serial_start }}{{ form.letter_serial_start.errors }}</label>
+      <label class="wide">{{ form.uo_serial_start.label|capfirst }}{{ form.uo_serial_start }}{{ form.uo_serial_start.errors }}</label></div>
+    <span class="help">Letters and AEO references share one series; U.O. notes have their own. {{ form.letter_serial_start.help_text }}</span>
+  </fieldset>
+  <fieldset><legend>Signature block</legend>
+    <div class="row"><label class="wide">{{ form.signatory.label|capfirst }}{{ form.signatory }}{{ form.signatory.errors }}</label>
+      <label class="wide">{{ form.signatory_office.label|capfirst }}{{ form.signatory_office }}{{ form.signatory_office.errors }}</label></div>
+    <span class="help">Used on communications drafted from now on.</span>
+  </fieldset>
+  <div class="formactions"><button class="btn btn-primary">Save settings</button></div>
+</form>
+{% endblock %}

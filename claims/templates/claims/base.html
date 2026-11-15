@@ -19,6 +19,7 @@
     <a href="{% url 'letter_list' %}" class="{% block nav_letters %}{% endblock %}">Letters &amp; notes</a>
     <a href="{% url 'reports' %}" class="{% block nav_reports %}{% endblock %}">Reports</a>
     <a href="{% url 'establishment_list' %}" class="{% block nav_estt %}{% endblock %}">Establishments</a>
+    {% if can_configure %}<a href="{% url 'office_settings' %}" class="{% block nav_settings %}{% endblock %}">Settings</a>{% endif %}
   </nav>
   <form class="search" action="{% url 'claim_list' %}" method="get">
     <input type="search" name="q" placeholder="Name, UAN, PF no., diary no." aria-label="Search claims">

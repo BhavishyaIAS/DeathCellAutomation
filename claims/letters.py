@@ -15,11 +15,11 @@ Which findings go into which communication:
 Wording follows the letters issued by the Death Claims Cell, RO Kadapa.
 """
 
-from django.conf import settings
 from django.utils import timezone
 
 from .checklist import fmt_date
 from .models import Communication, Finding, Route
+from .models import office as office_config
 
 Kind = Communication.Kind
 
@@ -275,7 +275,7 @@ def build_drafts(scrutiny, user=None, force=False):
             continue
         for name, value in spec.items():
             setattr(comm, name, value)
-        comm.signatory = settings.OFFICE["signatory"]
+        comm.signatory = office_config()["signatory"]
         comm.edited = False
         comm.save()
         out.append(comm)
@@ -338,7 +338,7 @@ def copy_blocks(text):
 
 def parts(comm):
     """Everything the HTML view and the Word export need to lay a letter out."""
-    office = settings.OFFICE
+    office = office_config()
     year = (comm.letter_date or comm.created_at or timezone.now()).year
     closing = [{"text": text, "urgent": "most urgent" in text.lower(),
                 "flush": text.lower().startswith("encl")}

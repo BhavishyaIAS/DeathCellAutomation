@@ -29,7 +29,7 @@ Open <http://localhost:8000>. Demo logins (password `kadapa@123`):
 |---------|--------------------|---------------------------------------------------|
 | `da1`, `da2` | Dealing Assistant | registers claims, scrutinises, issues letters, inwards |
 | `ss1`   | Section Supervisor | validates the scrutiny, or returns it             |
-| `ao1`   | Accounts Officer   | approves (letters get numbered), or returns it    |
+| `ao1`   | Accounts Officer   | approves (letters get numbered), or returns it; office settings |
 | `nodal` | Nodal Officer      | everything, plus `/admin/` for users and masters  |
 
 For a real start with an empty register use `python manage.py seed_demo --masters`
@@ -57,8 +57,9 @@ Received ─► Scrutiny (DA) ─► Validation (SS) ─► Approval (AO) ─┬
    (`AP/GR/CDP/ Death claims cell /2026/…`) and date. If the Accounts Officer corrects
    a number by hand, later numbers follow on from it.
 5. **Issue** – print on the letterhead (or download Word), despatch, record the date.
-   A reply is due in 15 days; overdue letters show on the dashboard and a **reminder**
-   can be drafted in one click.
+   A reply is due in 15 days (changeable on the Settings screen, and for an individual
+   letter when it is issued); overdue letters show on the dashboard and a **reminder**
+   can be drafted in one click – it needs the Accounts Officer's approval before issue.
 6. **Compliance** – record the reply, mark remarks complied, then **re-scrutinise**: a
    new round opens with the earlier answers, and only what has changed needs updating.
    If only office-side actions were pending (U.O. note, Form-13, JD inward) the claim
@@ -122,8 +123,8 @@ edited remark or letter is never overwritten when the checklist is re-evaluated.
 
 | To change | Edit |
 |---|---|
-| Office name, letter number prefix, signatory, helpline footer, reply period, age and delay thresholds | `OFFICE` in `deathcell/settings.py` |
-| Serial from which letter / U.O. note numbers start, to continue the despatch register | `letter_serial_start`, `uo_serial_start` in `OFFICE` |
+| Reply period, age and belated-claim thresholds, starting serials for letters and U.O. notes, signatory | **Settings** screen (Accounts Officer / Nodal Officer) – no code change needed |
+| Office name, letter number prefixes, helpline footer; first-run defaults of the above | `OFFICE` in `deathcell/settings.py` |
 | Checklist points, options, wording | `claims/checklist.py` |
 | A rule or the wording of a remark | `claims/rules.py` (+ its test) |
 | Opening / closing paragraphs, subject lines, copy-to | `claims/letters.py` |
@@ -179,4 +180,4 @@ Taken with the fictional demo data (`docs/screenshots/`):
 |---|---|
 | ![Dashboard](docs/screenshots/1-dashboard.png) | ![Scrutiny checklist with live result](docs/screenshots/2-scrutiny-checklist.png) |
 | ![Claim awaiting approval](docs/screenshots/3-claim-with-accounts-officer.png) | ![Draft AEO reference on letterhead](docs/screenshots/4-aeo-reference-draft.png) |
-| ![U.O. note to the Accounts Group](docs/screenshots/7-uo-note.png) | ![Reports](docs/screenshots/6-reports.png) |
+| ![U.O. note to the Accounts Group](docs/screenshots/7-uo-note.png) | ![Office settings](docs/screenshots/8-office-settings.png) |

@@ -201,11 +201,13 @@ def approve_letter(comm, user):
 
 
 @transaction.atomic
-def issue_letter(comm, user, when, mode=""):
+def issue_letter(comm, user, when, mode="", due_on=None):
     _require(user.has_role(Role.DA, Role.SS), "Only the cell staff can record dispatch.")
     _require(comm.status == Communication.Status.APPROVED,
              "Only an approved letter can be issued.")
-    comm.mark_issued(when, mode)
+    _require(due_on is None or due_on >= when,
+             "The reply-due date cannot be before the date of issue.")
+    comm.mark_issued(when, mode, due_on)
     comm.claim.log(user, f"{comm.title} issued", f"No. {comm.number}; {mode}".strip("; "))
 
 

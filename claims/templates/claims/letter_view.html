@@ -59,7 +59,8 @@
     <p class="muted">Print, obtain signature, despatch – then record it here to start the reply clock ({{ OFFICE.reply_days }} days).</p>
     {% if is_staff_user %}<form method="post" action="{% url 'letter_action' comm.pk 'issue' %}">{% csrf_token %}
       <label>Issued on<input type="date" name="issued_on" value="{{ today|date:'Y-m-d' }}"></label>
-      <label>Mode<select name="dispatch_mode"><option>Speed post</option><option>Registered post</option><option>e-Mail</option><option>e-Office</option><option>By hand</option></select></label>
+      <label>Mode<select name="dispatch_mode">{% if comm.is_uo %}<option>e-Office</option><option>By hand</option>{% else %}<option>Speed post</option><option>Registered post</option><option>e-Mail</option><option>e-Office</option><option>By hand</option>{% endif %}</select></label>
+      <label>Reply due on<input type="date" name="due_on" value="{{ default_due|date:'Y-m-d' }}"><span class="help">{{ OFFICE.reply_days }} days by default – change it for this letter if needed.</span></label>
       <button class="btn btn-primary btn-block">Mark as issued</button></form>{% endif %}
   </section>
   {% elif comm.status == "ISSUED" %}

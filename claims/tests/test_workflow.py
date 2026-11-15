@@ -12,7 +12,7 @@ from claims.docx_export import letter_docx
 from claims.letters import build_reminder
 from claims.letters import parts as letter_parts
 from claims.models import (AEOOffice, Claim, ClaimStatus, Communication, Establishment,
-                           Finding, Role, Route, User)
+                           Finding, OfficeSettings, Role, Route, User)
 from claims.workflow import WorkflowError
 
 from .test_rules import clean
@@ -378,3 +378,70 @@ class Numbering(Base):
         self.client.force_login(self.da)
         page = self.client.get(reverse("letter_view", args=[note.pk]))
         self.assertContains(page, "U.O. NOTE")
+
+
+class OfficeSettingsScreen(Base):
+    VALUES = {"reply_days": 10, "older_age_at_joining": 50, "belated_claim_years": 6,
+              "letter_serial_start": 2301, "uo_serial_start": 40,
+              "signatory": "Asst. P.F. Commissioner (Death Cell)",
+              "signatory_office": "Regional Office, Kadapa."}
+
+    def save_settings(self, **over):
+        self.client.force_login(self.ao)
+        return self.client.post(reverse("office_settings"), {**self.VALUES, **over})
+
+    def test_only_the_accounts_officer_can_change_settings(self):
+        self.client.force_login(self.da)
+        self.client.post(reverse("office_settings"), self.VALUES)
+        self.assertFalse(OfficeSettings.objects.exists())
+        self.assertNotContains(self.client.get(reverse("dashboard")), "/settings/")
+        self.assertRedirects(self.save_settings(), reverse("office_settings"))
+        self.assertEqual(OfficeSettings.objects.get().reply_days, 10)
+        self.assertContains(self.client.get(reverse("dashboard")), "/settings/")
+
+    def test_settings_drive_reply_period_numbering_and_signatory(self):
+        self.save_settings()
+        claim = self.claim()
+        self.to_ao(claim, sign_tally="NO", interest_excess="YES")
+        workflow.approve(claim, self.ao)
+        letter = claim.communications.get(kind=Communication.Kind.EMPLOYER)
+        note = claim.communications.get(kind=Communication.Kind.UO_NOTE)
+        self.assertTrue(letter.number.endswith("/2301"))
+        self.assertTrue(note.number.endswith("/40"))
+        self.assertEqual(letter.signatory, "Asst. P.F. Commissioner (Death Cell)")
+        today = timezone.localdate()
+        workflow.issue_letter(letter, self.da, today, "Speed post")
+        letter.refresh_from_db()
+        self.assertEqual(letter.due_on, today + timedelta(days=10))
+
+    def test_reply_due_date_can_be_set_for_one_letter(self):
+        claim = self.claim()
+        self.to_ao(claim, sign_tally="NO")
+        workflow.approve(claim, self.ao)
+        letter = claim.communications.get()
+        today = timezone.localdate()
+        self.client.force_login(self.da)
+        self.client.post(reverse("letter_action", args=[letter.pk, "issue"]), {
+            "issued_on": today.isoformat(), "dispatch_mode": "Speed post",
+            "due_on": (today + timedelta(days=30)).isoformat()})
+        letter.refresh_from_db()
+        self.assertEqual(letter.status, Communication.Status.ISSUED)
+        self.assertEqual(letter.due_on, today + timedelta(days=30))
+
+    def test_age_threshold_for_past_employment_query_follows_settings(self):
+        # joined at 47 with about 6.5 years' service and no past service linked
+        answers = dict(off_doj="2019-09-02", clm_doj="2019-09-02",
+                       first_contrib_month="2019-09", off_dob="1972-01-01",
+                       clm_dob="1972-01-01", wages_gt_15000="NO")
+        claim = self.claim()
+        scrutiny = workflow.start_scrutiny(claim, self.da)
+        workflow.save_answers(scrutiny, clean(**answers), self.da)
+        self.assertEqual(scrutiny.findings.get().code, "PAST_SERVICE_QUERY")
+        self.save_settings(older_age_at_joining=50)
+        workflow.save_answers(scrutiny, clean(**answers), self.da)
+        self.assertFalse(scrutiny.findings.exists())
+
+    def test_out_of_range_values_are_refused(self):
+        response = self.save_settings(reply_days=0)
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(OfficeSettings.objects.exists())
