@@ -8,13 +8,15 @@ Which findings go into which communication:
   otherwise employer / claimant  -> one letter to the employer, copy to the
                                     claimant and the AEO; addressed to the
                                     claimant instead if the establishment is closed
-  Accounts Group findings        -> one U.O. note to the Accounts Group
+  Accounts Group findings        -> one U.O. note to the Section Supervisor of
+                                    the Accounts Group, copy to the Inward section
   past service in another office -> one letter per Regional Office
 
 Wording follows the letters issued by the Death Claims Cell, RO Kadapa.
 """
 
 from django.conf import settings
+from django.utils import timezone
 
 from .checklist import fmt_date
 from .models import Communication, Finding, Route
@@ -141,26 +143,60 @@ def _aeo_reference(claim, points, in_service):
     )
 
 
-def _uo_note(claim, points):
+# What a U.O. note is about, by the rule that raised the point:
+# (wording for the subject line, wording for "forwarded ... for <purpose>")
+UO_TOPICS = {
+    "UAN_GENERATION": ("Generation of UAN, Aadhaar seeding & updation of member details",
+                       "generation of UAN, Aadhaar seeding and updation of member "
+                       "details"),
+    "AADHAAR_SEEDING": ("Aadhaar seeding & updation of member details",
+                        "Aadhaar seeding and updation of member details"),
+    "EPS_DIVERT_TO_EPF": ("Diversion of pension contributions",
+                          "diversion of pension contributions"),
+    "EPS_DIVERT_TO_EPS": ("Diversion of pension contributions",
+                          "diversion of pension contributions"),
+    "EXCESS_INTEREST": ("Deduction of excess interest", "deduction of excess interest"),
+    "RECREDIT": ("Re-credit of amount to the member's account",
+                 "re-credit of the amount to the member's account"),
+}
+UO_DEFAULT_TOPIC = ("Action required at the Accounts Group", "necessary action")
+KYC_CODES = {"UAN_GENERATION", "AADHAAR_SEEDING"}
+
+
+def _and(items):
+    items = list(dict.fromkeys(items))
+    return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " and " + items[-1]
+
+
+def _uo_note(claim, findings):
+    """U.O. note to the Accounts Group, in the format used by the cell."""
     group = claim.accounts_group or "_____"
+    topics = [UO_TOPICS.get(f.code, UO_DEFAULT_TOPIC) for f in findings]
+    efile = f" vide E-Office No. {claim.efile_no}" if claim.efile_no else ""
+    whose = f"{claim.late_name}, PF A/c No. {claim.pf_no}"
+    inward = "for information & necessary action"
+    if any(f.code in KYC_CODES for f in findings):
+        inward += " to initiate JD from PRO"
     return dict(
         kind=Kind.UO_NOTE,
-        to_block=f"The Accounts Officer / Section Supervisor,\nAccounts Group – {group}.",
-        subject=("Action required at the Accounts Group before inward of death "
-                 f"claims in r/o {claim.late_name}, PF A/c No. {claim.pf_no} – Reg."),
-        reference=_receipt_reference(claim),
+        to_block=f"The Section Supervisor,\nAG-{group},\nRO, Kadapa.",
+        subject=f"{_and(t[0] for t in topics)} in r/o {whose} – reg.",
+        reference=f"Death claim forms received in r/o {whose}.",
         salutation="",
-        intro=(f"Death claim forms ({claim.forms_text}) in respect of {_whose(claim)}, "
-               f"member of M/s {claim.establishment.name}, have been received in the "
-               "Death Claims Cell. On scrutiny, it is observed that the following "
-               "action is required at the Accounts Group before the claims can be "
-               "inwarded for settlement:"),
-        points=points,
-        closing=("It is requested to take the above action on priority, as the "
-                 "settlement of the death claims is held up for want of the same, and "
-                 "to return this note to the Death Claims Cell with the action taken "
-                 "recorded thereon."),
-        copy_to="",
+        intro=("With reference to the above, it is to inform that death claim forms and "
+               f"enclosures in r/o {claim.late_name}, PF Account No. {claim.pf_no} were "
+               "received for the settlement of death benefits.\n\n"
+               f"On verification, the following {'is' if len(findings) == 1 else 'are'} "
+               "noticed, and in this regard the said claim forms and enclosures are "
+               f"forwarded to the concerned Accounts Section (SS, AG-{group}){efile}, "
+               f"for {_and(t[1] for t in topics)}:"),
+        points=[f.text for f in findings],
+        closing=("Therefore, in view of the above, the action indicated above may be "
+                 "taken after due verification. The action taken, along with the "
+                 "approved E-File note orders, may be forwarded to the Inward section "
+                 "for making receipt entry of the Death claims.\n\n"
+                 "This may be treated as Most Urgent.\n\nEncl.: As above."),
+        copy_to=f"The Section Supervisor,\nInward section\n… {inward}.",
     )
 
 
@@ -219,7 +255,7 @@ def build_drafts(scrutiny, user=None, force=False):
         wanted.append(_claimant_letter(claim, points) if closed
                       else _employer_letter(claim, points))
     if by_route.get(Route.ACCOUNTS):
-        wanted.append(_uo_note(claim, [f.text for f in by_route[Route.ACCOUNTS]]))
+        wanted.append(_uo_note(claim, by_route[Route.ACCOUNTS]))
     offices = {}
     for f in by_route.get(Route.OTHER_RO, []):
         offices.setdefault(f.other_office or "__________", []).append(f.text)
@@ -301,17 +337,22 @@ def copy_blocks(text):
 
 
 def parts(comm):
+    """Everything the HTML view and the Word export need to lay a letter out."""
     office = settings.OFFICE
-    prefix = office["uo_prefix" if comm.is_uo else "letter_prefix"]
-    year = (comm.letter_date or comm.created_at).year if (
-        comm.letter_date or comm.created_at) else ""
+    year = (comm.letter_date or comm.created_at or timezone.now()).year
+    closing = [{"text": text, "urgent": "most urgent" in text.lower(),
+                "flush": text.lower().startswith("encl")}
+               for text in paragraphs(comm.closing)]
     return {
         "comm": comm,
-        "number": comm.number or f"{prefix} /{year}/",
+        "number": comm.number or comm.number_stem(year),
         "date": fmt_date(comm.letter_date) if comm.letter_date else "",
         "to_lines": [ln for ln in comm.to_block.splitlines() if ln.strip()],
         "references": [ln for ln in comm.reference.splitlines() if ln.strip()],
-        "closing": paragraphs(comm.closing),
+        "intro": paragraphs(comm.intro),
+        # A U.O. note about a single matter reads as a paragraph, not a list.
+        "numbered": not (comm.is_uo and len(comm.points) == 1),
+        "closing": closing,
         "copies": copy_blocks(comm.copy_to),
         "signatory": comm.signatory or office["signatory"],
         "signatory_office": office["signatory_office"],

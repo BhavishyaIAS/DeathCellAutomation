@@ -1,4 +1,8 @@
+import re
+
 from django import forms
+
+from django.utils import timezone
 
 from .models import Claim, Communication, Establishment, Finding, Role, Route, User
 
@@ -87,6 +91,13 @@ class CommunicationForm(forms.ModelForm):
         self.instance.points = [p.strip() for p in
                                 self.cleaned_data["points_text"].split("\n\n") if p.strip()]
         self.instance.edited = True
+        serial = re.search(r"(\d+)\s*$", self.cleaned_data.get("number") or "")
+        if serial and "number" in self.changed_data:
+            # Keep the running series in step with a number corrected by hand.
+            self.instance.serial = int(serial.group(1))
+            if self.instance.year is None:
+                self.instance.year = (self.cleaned_data.get("letter_date")
+                                      or timezone.localdate()).year
         return super().save(commit)
 
 

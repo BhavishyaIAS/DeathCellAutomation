@@ -187,6 +187,15 @@ class Claim(models.Model):
         return f"Late {title} {self.member_name}"
 
     @property
+    def pf_tail(self):
+        """Establishment and member number of the PF account, without the
+        office code: GR/CDP/50173/123 -> 50173/123."""
+        parts = [p.strip() for p in self.pf_no.split("/") if p.strip()]
+        while len(parts) > 1 and parts[0].isalpha():
+            parts.pop(0)
+        return "/".join(parts)
+
+    @property
     def forms_claimed(self):
         out = []
         if self.form_20:
@@ -466,12 +475,20 @@ class Communication(models.Model):
             base = f"Reminder {self.reminder_no} – {base}"
         return base
 
+    def number_stem(self, year):
+        """The letter number without its running serial."""
+        office = settings.OFFICE
+        if self.is_uo:
+            return f"{office['uo_prefix']}/{self.claim.pf_tail}/{year}/"
+        return f"{office['letter_prefix']} /{year}/"
+
     def assign_number(self, when=None):
         """Give the letter the next running number of the year (idempotent)."""
         if self.number:
             return
         when = when or timezone.localdate()
-        prefix = settings.OFFICE["uo_prefix" if self.is_uo else "letter_prefix"]
+        start = settings.OFFICE["uo_serial_start" if self.is_uo
+                                else "letter_serial_start"]
         with transaction.atomic():
             qs = Communication.objects.select_for_update().filter(
                 year=when.year, serial__isnull=False)
@@ -479,8 +496,8 @@ class Communication(models.Model):
                 kind=self.Kind.UO_NOTE)
             last = qs.order_by("-serial").first()
             self.year = when.year
-            self.serial = (last.serial + 1) if last else 1
-            self.number = f"{prefix} /{when.year}/{self.serial}"
+            self.serial = max(last.serial + 1 if last else start, start)
+            self.number = f"{self.number_stem(when.year)}{self.serial}"
             self.letter_date = when
             self.save(update_fields=["year", "serial", "number", "letter_date"])
 

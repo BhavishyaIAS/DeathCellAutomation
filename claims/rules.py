@@ -23,6 +23,7 @@ from .checklist import (PROFILE_FIELDS, compare_display, fmt_date, fmt_month,
                         parse_date, parse_month)
 
 EPS_CUTOFF = date(2014, 9, 1)
+NON_AADHAAR = ("In cases where Aadhaar seeding is not possible, necessary approval of the Competent Authority may be obtained through E-file notings for processing the death claim as a \"Non-Aadhaar\" case.")
 
 EMPLOYER, CLAIMANT, AEO = "EMPLOYER", "CLAIMANT", "AEO"
 ACCOUNTS, OTHER_RO, INTERNAL, NOTE = "ACCOUNTS", "OTHER_RO", "INTERNAL", "NOTE"
@@ -250,20 +251,21 @@ def evaluate(a, ctx):  # noqa: C901 - one long, linear walk down the checklist
                   f"office records: {diff_text}. A Joint Declaration for correction of "
                   f"the same, signed by the claimant and the employer, may be submitted "
                   f"online through the Employer Portal along with the supporting "
-                  f"documents prescribed under the SOP; in case it cannot be submitted "
-                  f"online owing to a technical difficulty, a physical Joint "
-                  f"Declaration duly attested by the authorised signatory may be "
-                  f"furnished.")
+                  f"documents prescribed under the SOP; if any error persists while "
+                  f"submitting it online, a physical Joint Declaration duly attested "
+                  f"by the authorised signatory may be furnished along with a "
+                  f"screenshot of the error.")
         if exit_issues:
             issues = _join(exit_issues)
             r.add("EXIT_NOT_UPDATED", "3", "EXIT", EMPLOYER,
                   "Date / reason of exit not updated",
                   f"In r/o PF A/c No. {pf}, {issues}. The employer is advised to "
                   f"update the Date of Exit and Reason for Leaving through the online "
-                  f"Employer Portal. In case of any error while updating the details "
+                  f"Employer Portal. If any error persists while updating the details "
                   f"online, a physical Joint Declaration (JD) for updating the same may "
-                  f"be submitted along with the supporting documents prescribed under "
-                  f"the latest SOP, duly attested by the authorised signatory.")
+                  f"be furnished along with the supporting documents prescribed under "
+                  f"the latest SOP and a screenshot of the error, duly attested by the "
+                  f"authorised signatory.")
 
     # ---- Point 4: establishment status and attestation --------------------
     attested = a.get("attested_by")
@@ -620,9 +622,9 @@ def evaluate(a, ctx):  # noqa: C901 - one long, linear walk down the checklist
             r.add("UAN_GENERATION", "12", "KYC", ACCOUNTS,
                   "Generate UAN and seed Aadhaar",
                   f"UAN is not generated in r/o the deceased member under PF A/c No. "
-                  f"{pf}. UAN is to be generated and seeded with the member's Aadhaar "
-                  f"on the basis of the Joint Declaration and enclosures forwarded "
-                  f"herewith.")
+                  f"{pf}. UAN may be generated and the member's Aadhaar seeded to it "
+                  f"after due verification and updation of member details through JD "
+                  f"initiated from PRO. {NON_AADHAAR}")
         else:
             r.add("UAN_JD_REQUIRED", "12", "KYC", EMPLOYER,
                   "UAN not generated – JD and Aadhaar required",
@@ -635,11 +637,11 @@ def evaluate(a, ctx):  # noqa: C901 - one long, linear walk down the checklist
         need("12 – Aadhaar seeded with UAN or not")
     elif _no(a, "aadhaar_seeded"):
         if jd_kyc:
-            r.add("AADHAAR_SEEDING", "12", "KYC", INTERNAL,
-                  "Inward the JD and seed Aadhaar with UAN",
-                  "Member's Aadhaar is not seeded with UAN. The Joint Declaration and "
-                  "enclosures received with the claim are to be inwarded and Aadhaar "
-                  "seeded before inward of the death claims.")
+            r.add("AADHAAR_SEEDING", "12", "KYC", ACCOUNTS,
+                  "Seed Aadhaar with UAN and update member details",
+                  f"The member's Aadhaar is not seeded to UAN. Member's Aadhaar may be "
+                  f"seeded to the UAN after due verification and updation of member "
+                  f"details through JD initiated from PRO. {NON_AADHAAR}")
         else:
             r.add("AADHAAR_JD_REQUIRED", "12", "KYC", EMPLOYER,
                   "Aadhaar not seeded with UAN",
@@ -801,8 +803,8 @@ def evaluate(a, ctx):  # noqa: C901 - one long, linear walk down the checklist
     if delay is not None and delay > ctx.belated_years:
         clarification = ("A written clarification for the delay is enclosed."
                          if _yes(a, "delay_clarification") else
-                         "A written clarification for the delay may be obtained from "
-                         "the claimant.")
+                         "A clarification letter may be obtained from the employer and "
+                         "the claimant explaining the cause of the delay.")
         r.fact("28", f"Claim received {delay:.1f} years after death – to be referred "
                      f"to AEO.")
         r.add("BELATED_CLAIM", "28", "DELAY", AEO,

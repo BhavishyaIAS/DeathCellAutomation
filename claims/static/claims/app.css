@@ -268,8 +268,9 @@ form.inline input { width: 220px; }
 .sheet { background: #fff; width: 210mm; max-width: 100%; min-height: 297mm; margin: 0 auto; padding: 9mm 16mm 26mm 18mm; box-shadow: 0 2px 14px rgba(16,24,40,.14); font-family: Cambria, "Times New Roman", Georgia, serif; font-size: 10.5pt; line-height: 1.32; color: #000; position: relative; }
 .sheet.draft::after { content: "DRAFT"; position: absolute; top: 44%; left: 50%; transform: translate(-50%, -50%) rotate(-28deg); font: 700 90pt var(--font); color: rgba(0,0,0,.055); pointer-events: none; }
 .letterhead { width: calc(100% + 16mm); margin: 0 -8mm 1mm; display: block; }
-.uo-head { text-align: center; font-weight: 700; margin-bottom: 5mm; }
-.uo-head h2 { font: 700 12pt Cambria, serif; text-decoration: underline; margin-top: 3mm; }
+.uo-title { font: 700 12pt Cambria, "Times New Roman", serif; text-decoration: underline; text-align: center; margin: 0 0 4mm; }
+.l-para.flush { text-indent: 0; }
+.l-copy ol:has(> li:only-child) { list-style: none; padding-left: 0; }
 .sheet-frame { width: 100%; border-collapse: collapse; }
 .sheet-frame td { padding: 0; }
 .l-no { display: flex; justify-content: space-between; margin: 1mm 0 3mm; }

@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 from io import BytesIO
 
+from django.conf import settings
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -9,6 +10,7 @@ from docx import Document
 from claims import workflow
 from claims.docx_export import letter_docx
 from claims.letters import build_reminder
+from claims.letters import parts as letter_parts
 from claims.models import (AEOOffice, Claim, ClaimStatus, Communication, Establishment,
                            Finding, Role, Route, User)
 from claims.workflow import WorkflowError
@@ -156,8 +158,19 @@ class Letters(Base):
         kinds = {c.kind: c for c in claim.communications.all()}
         self.assertEqual(set(kinds), {Communication.Kind.UO_NOTE,
                                       Communication.Kind.OTHER_RO})
-        self.assertIn("U.O.", kinds[Communication.Kind.UO_NOTE].number)
-        self.assertIn("Accounts Group – 103", kinds[Communication.Kind.UO_NOTE].to_block)
+        note = kinds[Communication.Kind.UO_NOTE]
+        year = timezone.localdate().year
+        self.assertEqual(note.number, f"GR/CDP/Death Cell/1/1/{year}/1")
+        self.assertEqual(note.to_block, "The Section Supervisor,\nAG-103,\nRO, Kadapa.")
+        self.assertTrue(note.subject.startswith(
+            "Generation of UAN, Aadhaar seeding & updation of member details in r/o "
+            "Late Sri K Nageswara Rao"))
+        self.assertIn("(SS, AG-103) vide E-Office No. 1336309", note.intro)
+        self.assertIn("Non-Aadhaar", note.points[0])
+        self.assertIn("Inward section", note.copy_to)
+        self.assertIn("to initiate JD from PRO", note.copy_to)
+        self.assertIn("Encl.: As above.", note.closing)
+        self.assertTrue(kinds[Communication.Kind.OTHER_RO].number.endswith(f"/{year}/1"))
         self.assertIn("Regional Office, Hyderabad",
                       kinds[Communication.Kind.OTHER_RO].to_block)
         # nothing was asked of the employer, so no fresh scrutiny round is needed
@@ -203,6 +216,7 @@ class Letters(Base):
         workflow.approve_letter(reminder, self.ao)
         self.assertTrue(reminder.number.endswith("/2"))
 
+        self.assertEqual(letter_parts(letter)["numbered"], True)
         document = Document(BytesIO(letter_docx(letter)))
         text = "\n".join(p.text for p in document.paragraphs)
         self.assertIn("K Nageswara Rao", text)
@@ -309,3 +323,58 @@ class Editing(Base):
         finding.refresh_from_db()
         self.assertTrue(finding.included)
         self.assertEqual(self.claim_.communications.count(), 1)
+
+
+class Numbering(Base):
+    def approved_letter(self, **answers):
+        claim = self.claim()
+        self.to_ao(claim, **(answers or {"sign_tally": "NO"}))
+        workflow.approve(claim, self.ao)
+        return claim.communications.get()
+
+    def test_pf_tail_drops_the_office_code(self):
+        for pf_no, tail in (("GR/CDP/50173/123", "50173/123"),
+                            ("GRCDP/50087/112", "50087/112"),
+                            ("GRCDP0043246000001024", "GRCDP0043246000001024")):
+            self.assertEqual(Claim(pf_no=pf_no).pf_tail, tail)
+
+    def test_series_can_continue_from_the_despatch_register(self):
+        office = dict(settings.OFFICE, letter_serial_start=2301)
+        with self.settings(OFFICE=office):
+            first = self.approved_letter()
+            second = self.approved_letter()
+        self.assertTrue(first.number.endswith("/2301"))
+        self.assertTrue(second.number.endswith("/2302"))
+
+    def test_number_corrected_by_hand_carries_the_series_forward(self):
+        letter = self.approved_letter()
+        self.client.force_login(self.ao)
+        year = timezone.localdate().year
+        self.client.post(reverse("letter_edit", args=[letter.pk]), {
+            "number": f"AP/GR/CDP/ Death claims cell /{year}/2264",
+            "letter_date": timezone.localdate().isoformat(),
+            "to_block": letter.to_block, "subject": letter.subject,
+            "reference": letter.reference, "salutation": "Sir,", "intro": letter.intro,
+            "points_text": "\n\n".join(letter.points), "closing": letter.closing,
+            "copy_to": letter.copy_to, "signatory": letter.signatory})
+        letter.refresh_from_db()
+        self.assertEqual(letter.serial, 2264)
+        self.assertTrue(self.approved_letter().number.endswith("/2265"))
+
+    def test_single_matter_uo_note_reads_as_a_paragraph_with_to_at_the_foot(self):
+        note = self.approved_letter(aadhaar_seeded="NO", jd_aadhaar="YES")
+        self.assertEqual(note.kind, Communication.Kind.UO_NOTE)
+        self.assertTrue(note.subject.startswith(
+            "Aadhaar seeding & updation of member details in r/o"))
+        self.assertFalse(letter_parts(note)["numbered"])
+        document = Document(BytesIO(letter_docx(note)))
+        lines = [p.text for p in document.paragraphs if p.text.strip()]
+        self.assertEqual(lines[0], "U.O. NOTE")
+        self.assertLess(lines.index("Regional Office, Kadapa."), lines.index("To"))
+        self.assertIn("Inward section …… for information & necessary action to initiate "
+                      "JD from PRO.", lines)
+        self.assertNotIn("Yours faithfully,", lines)
+        self.assertEqual(len(document.inline_shapes), 1)
+        self.client.force_login(self.da)
+        page = self.client.get(reverse("letter_view", args=[note.pk]))
+        self.assertContains(page, "U.O. NOTE")

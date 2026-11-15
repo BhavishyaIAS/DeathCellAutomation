@@ -20,24 +20,23 @@
 <div class="letter-layout">
 <article class="sheet {% if comm.status == 'DRAFT' %}draft{% endif %}">
   <table class="sheet-frame"><tbody><tr><td>
-  {% if comm.is_uo %}
-  <header class="uo-head"><div>EMPLOYEES' PROVIDENT FUND ORGANISATION</div><div>REGIONAL OFFICE, KADAPA</div><div class="cell">DEATH CLAIMS CELL</div><h2>U.O. NOTE</h2></header>
-  {% else %}
   <img class="letterhead" src="{% static 'claims/letterhead.jpg' %}" alt="Employees' Provident Fund Organisation, Regional Office, Kadapa">
-  {% endif %}
   <div class="l-no"><span>No. {{ number }}</span><span>Date: {{ date }}</span></div>
-  <div class="l-to">To<br>{% for line in to_lines %}{{ line }}<br>{% endfor %}</div>
+  {% if comm.is_uo %}<h2 class="uo-title">U.O. NOTE</h2>
+  {% else %}<div class="l-to">To<br>{% for line in to_lines %}{{ line }}<br>{% endfor %}</div>{% endif %}
   <table class="l-sub">
     <tr><td>Sub:</td><td><strong>{{ comm.subject }}</strong></td></tr>
     {% for ref in references %}<tr><td>{% if forloop.first %}Ref:{% endif %}</td><td>{% if references|length > 1 %}{{ forloop.counter }}. {% endif %}{{ ref }}</td></tr>{% endfor %}
   </table>
   <div class="l-stars">****</div>
   {% if comm.salutation %}<p class="l-sal">{{ comm.salutation }}</p>{% endif %}
-  <p class="l-para">{{ comm.intro }}</p>
-  <ol class="l-points">{% for p in comm.points %}<li>{{ p }}</li>{% endfor %}</ol>
-  {% for p in closing %}<p class="l-para {% if 'MOST URGENT' in p %}urgent{% endif %}">{{ p }}</p>{% endfor %}
+  {% for p in intro %}<p class="l-para">{{ p }}</p>{% endfor %}
+  {% if numbered %}<ol class="l-points">{% for p in comm.points %}<li>{{ p }}</li>{% endfor %}</ol>
+  {% else %}{% for p in comm.points %}<p class="l-para">{{ p }}</p>{% endfor %}{% endif %}
+  {% for p in closing %}<p class="l-para {% if p.urgent %}urgent{% endif %} {% if p.flush %}flush{% endif %}">{{ p.text }}</p>{% endfor %}
   <div class="l-sign">{% if not comm.is_uo %}Yours faithfully,{% endif %}<div class="gap"></div>{{ signatory }},<br>{{ signatory_office }}</div>
-  {% if copies %}<div class="l-copy"><strong><u>COPY TO:</u></strong>
+  {% if comm.is_uo %}<div class="l-to">To<br>{% for line in to_lines %}{{ line }}<br>{% endfor %}</div>{% endif %}
+  {% if copies %}<div class="l-copy"><strong><u>{% if comm.is_uo %}Copy to:{% else %}COPY TO:{% endif %}</u></strong>
     <ol>{% for block in copies %}<li>{% for line in block %}{{ line }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</li>{% endfor %}</ol></div>{% endif %}
   </td></tr></tbody>
   <tfoot><tr><td><div class="foot-space"></div></td></tr></tfoot></table>

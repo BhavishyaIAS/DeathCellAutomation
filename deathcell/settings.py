@@ -95,7 +95,12 @@ OFFICE = {
     "address": "1/30, Railway Station Road, Kadapa - 516004, Andhra Pradesh",
     # Letter number is "<prefix>/<year>/<serial>"
     "letter_prefix": "AP/GR/CDP/ Death claims cell",
-    "uo_prefix": "AP/GR/CDP/ Death claims cell /U.O.",
+    # U.O. note number is "<uo_prefix>/<estt code>/<member no.>/<year>/<serial>"
+    "uo_prefix": "GR/CDP/Death Cell",
+    # First serial the application should allot, so that numbering continues
+    # from the cell's despatch register (e.g. 2301). Later numbers follow on.
+    "letter_serial_start": 1,
+    "uo_serial_start": 1,
     "signatory": "Accounts Officer (D/C)",
     "signatory_office": "Regional Office, Kadapa.",
     "helpline": "9491138280",

@@ -148,7 +148,7 @@ class Command(BaseCommand):
     # ------------------------------------------------------------------
     def new_claim(self, users, days_ago, name, pf, est, death, claimant, relation,
                   gender="M", uan="", da="da1", forms=("20", "10D", "5IF"),
-                  efile="", mode="POST", ag="103"):
+                  efile="", mode="POST", ag="6/1"):
         claim = Claim.objects.create(
             received_on=ago(days_ago), mode=mode, member_name=name, gender=gender,
             uan=uan, pf_no=pf, establishment=est, accounts_group=ag, efile_no=efile,
@@ -269,7 +269,7 @@ class Command(BaseCommand):
         # 7. No UAN (JD attached) + past service in another RO -> U.O. note + RO letter
         c = self.new_claim(U, 16, "Mallela Siva Subbaiah", "GR/CDP/98107/10513",
                            estt["Chandragiri"], ago(60), "M. Venkata Sivamma", "Wife",
-                           forms=("20", "10D"), ag="107")
+                           forms=("20", "10D"), ag="7/2", efile="1222975")
         a = clean_answers(c, date(2015, 4, 1), date(1970, 6, 6))
         a.update(uan_available="NO", aadhaar_seeded="", jd_aadhaar="YES",
                  no_prev_service="", prior_eps_member="YES", prev_services=[

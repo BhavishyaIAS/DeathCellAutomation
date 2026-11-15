@@ -54,7 +54,8 @@ Received ─► Scrutiny (DA) ─► Validation (SS) ─► Approval (AO) ─┬
    one by hand. The draft communications follow the remarks automatically.
 4. **Submit → validate → approve.** SS and AO can correct remarks and drafts, or return
    the file with a reason. On approval the communications get the next running number
-   (`AP/GR/CDP/ Death claims cell /2026/…`) and date.
+   (`AP/GR/CDP/ Death claims cell /2026/…`) and date. If the Accounts Officer corrects
+   a number by hand, later numbers follow on from it.
 5. **Issue** – print on the letterhead (or download Word), despatch, record the date.
    A reply is due in 15 days; overdue letters show on the dashboard and a **reminder**
    can be drafted in one click.
@@ -90,7 +91,7 @@ Each rule lives in `claims/rules.py`, has a stable code, and is covered by a tes
 | 9 | Eligible for EPS but 8.33% not diverted | U.O. note to divert A/c 1 → A/c 10 |
 | 10 | E-nomination filed after death | Flagged invalid on the checklist |
 | 11 | Columns not filled, not signed by all claimants, enclosures not attested | Employer |
-| 12 | No UAN / Aadhaar not seeded | With JD: U.O. note for UAN generation (or JD inward for seeding). Without: employer to submit JD |
+| 12 | No UAN / Aadhaar not seeded | With the member's Aadhaar copy and enclosures on hand: U.O. note to the Accounts Group for UAN generation / Aadhaar seeding through JD initiated from PRO (with the "Non-Aadhaar case" clause). Without them: employer to submit JD |
 | 13–21, 27 | Death certificate, FMC, Aadhaar of beneficiaries, DOB proofs, photographs, bank accounts, minors' accounts, NCP statement, descriptive rolls | Employer (copy to claimant) |
 | 22, 23 | Died away from service, under 10 years' service, and more than 3 years after exit or un-married | Form 10D not admissible – Form 10C called for |
 | 24 | Interest credited beyond 3 years from death | U.O. note to deduct the excess |
@@ -109,7 +110,9 @@ submitted while required items are unanswered, so a blank checklist never reads 
   *all* the discrepancies, copy to employer (for necessary action) and claimant.
 - Otherwise → one letter to the employer, copy to claimant and AEO. If the
   establishment is closed it is addressed to the claimant.
-- Accounts Group points → one U.O. note to the Accounts Group of the claim.
+- Accounts Group points → one U.O. note in the cell's format: numbered
+  `GR/CDP/Death Cell/<estt>/<member>/<year>/<serial>`, addressed (at the foot) to the
+  Section Supervisor of the claim's Accounts Group, copy to the Inward section.
 - Past service elsewhere → one letter per Regional Office.
 
 The rules only *propose*. The DA, SS and AO can reword, re-route or drop anything; an
@@ -120,6 +123,7 @@ edited remark or letter is never overwritten when the checklist is re-evaluated.
 | To change | Edit |
 |---|---|
 | Office name, letter number prefix, signatory, helpline footer, reply period, age and delay thresholds | `OFFICE` in `deathcell/settings.py` |
+| Serial from which letter / U.O. note numbers start, to continue the despatch register | `letter_serial_start`, `uo_serial_start` in `OFFICE` |
 | Checklist points, options, wording | `claims/checklist.py` |
 | A rule or the wording of a remark | `claims/rules.py` (+ its test) |
 | Opening / closing paragraphs, subject lines, copy-to | `claims/letters.py` |
@@ -175,3 +179,4 @@ Taken with the fictional demo data (`docs/screenshots/`):
 |---|---|
 | ![Dashboard](docs/screenshots/1-dashboard.png) | ![Scrutiny checklist with live result](docs/screenshots/2-scrutiny-checklist.png) |
 | ![Claim awaiting approval](docs/screenshots/3-claim-with-accounts-officer.png) | ![Draft AEO reference on letterhead](docs/screenshots/4-aeo-reference-draft.png) |
+| ![U.O. note to the Accounts Group](docs/screenshots/7-uo-note.png) | ![Reports](docs/screenshots/6-reports.png) |

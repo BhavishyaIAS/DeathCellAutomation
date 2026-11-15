@@ -210,8 +210,9 @@ POINTS = [
         F("uan_available", "UAN is generated for the member", short="UAN generated"),
         F("aadhaar_seeded", "Member's Aadhaar is seeded with UAN", "ynna",
           short="Aadhaar seeded"),
-        F("jd_aadhaar", "JD & enclosures for UAN generation / Aadhaar seeding "
-                        "attached", "ynna", short="JD for Aadhaar attached"),
+        F("jd_aadhaar", "Member's Aadhaar copy and enclosures as per SOP available "
+                        "for seeding (JD to be initiated from PRO)", "ynna",
+          short="Aadhaar copy & enclosures available"),
     ]),
     P("13", "Original Death Certificate attached or not. If attached, the same is in "
             "order or not to be specified here.", [

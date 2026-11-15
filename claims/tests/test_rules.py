@@ -222,6 +222,17 @@ class OfficeSide(SimpleTestCase):
                                 jd_aadhaar="YES"), ctx())
         self.assertEqual(codes(result, ACCOUNTS), {"UAN_GENERATION"})
 
+    def test_aadhaar_not_seeded_goes_to_accounts_group_by_uo_note(self):
+        result = evaluate(clean(aadhaar_seeded="NO", jd_aadhaar="YES"), ctx())
+        finding = result.findings[0]
+        self.assertEqual((finding.code, finding.route), ("AADHAAR_SEEDING", ACCOUNTS))
+        self.assertIn("JD initiated from PRO", finding.text)
+        self.assertIn('"Non-Aadhaar" case', finding.text)
+
+    def test_aadhaar_not_seeded_without_enclosures_asks_employer(self):
+        result = evaluate(clean(aadhaar_seeded="NO"), ctx())
+        self.assertEqual(codes(result, EMPLOYER), {"AADHAAR_JD_REQUIRED"})
+
     def test_no_uan_without_jd_asks_employer(self):
         result = evaluate(clean(uan_available="NO", aadhaar_seeded=""), ctx())
         self.assertEqual(codes(result, EMPLOYER), {"UAN_JD_REQUIRED"})
@@ -250,6 +261,7 @@ class OfficeSide(SimpleTestCase):
     def test_claim_after_six_years_goes_to_aeo(self):
         result = evaluate(clean(), ctx(received_on=date(2033, 1, 1)))
         self.assertIn("BELATED_CLAIM", codes(result, AEO))
+        self.assertIn("from the employer and the claimant", result.findings[-1].text)
 
     def test_missing_enclosures(self):
         result = evaluate(clean(death_cert="NOT_ATTACHED", bank="NOT_SAME_BRANCH",
