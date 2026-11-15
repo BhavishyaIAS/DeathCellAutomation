@@ -4,9 +4,12 @@ from datetime import timedelta
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.views import PasswordChangeView
+from django.contrib.messages.views import SuccessMessageMixin
 from django.db.models import Count, Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse_lazy
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -689,6 +692,15 @@ def reports(request):
         .exclude(status__in=[Communication.Status.DRAFT,
                              Communication.Status.CANCELLED]).count(),
     })
+
+
+# -- own password ------------------------------------------------------------
+class ChangePassword(SuccessMessageMixin, PasswordChangeView):
+    """Every user can change their own password (stays signed in afterwards)."""
+
+    template_name = "claims/password_change.html"  # not the admin site's page
+    success_url = reverse_lazy("dashboard")
+    success_message = "Your password has been changed."
 
 
 # -- office settings ---------------------------------------------------------

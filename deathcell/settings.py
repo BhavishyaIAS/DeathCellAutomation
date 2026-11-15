@@ -61,6 +61,15 @@ DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": os.environ.get("DEATHCELL_DB", BASE_DIR / "db.sqlite3"),
+        # Several people work at once from their own computers: wait for a busy
+        # database instead of failing, take the write lock at the start of a
+        # transaction (so two users can never be given the same diary or letter
+        # number), and let readers carry on while someone is saving.
+        "OPTIONS": {
+            "timeout": 20,
+            "transaction_mode": "IMMEDIATE",
+            "init_command": "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;",
+        },
     }
 }
 

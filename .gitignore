@@ -5,3 +5,7 @@ db.sqlite3
 staticfiles/
 .env
 *.log
+db.sqlite3-wal
+db.sqlite3-shm
+backups/
+.secret_key

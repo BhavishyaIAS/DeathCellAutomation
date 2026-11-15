@@ -39,6 +39,9 @@ p { margin: .35rem 0; }
 .search input::placeholder { color: #c6d4e5; }
 .search input:focus { background: #fff; color: var(--ink); outline: 2px solid #9ec1ea; }
 .who { display: flex; align-items: center; gap: .75rem; }
+.who a { color: inherit; }
+.who a:hover { text-decoration: none; }
+.who a:hover small { text-decoration: underline; }
 .who strong { display: block; font-size: .9rem; line-height: 1.1; }
 .who small { opacity: .8; font-size: .76rem; }
 .topbar .btn-ghost { color: #fff; border-color: rgba(255,255,255,.35); }

@@ -32,8 +32,9 @@ Open <http://localhost:8000>. Demo logins (password `kadapa@123`):
 | `ao1`   | Accounts Officer   | approves (letters get numbered), or returns it; office settings |
 | `nodal` | Nodal Officer      | everything, plus `/admin/` for users and masters  |
 
-For a real start with an empty register use `python manage.py seed_demo --masters`
-(only AEO offices and the demo users), then create the real users in `/admin/`.
+That is the demo, for trying it out on one computer. For real use on the office
+network follow *Hosting on a Windows desktop* below – it starts with an empty register
+and a single `nodal` login from which the real users are created.
 
 Run the tests with `python manage.py test`.
 
@@ -131,21 +132,49 @@ edited remark or letter is never overwritten when the checklist is re-evaluated.
 | Letterhead image | `claims/static/claims/letterhead.jpg` |
 | Users, AEO office addresses, establishments | `/admin/` and the Establishments screen |
 
-## Running it for the office
+## Hosting on a Windows desktop for the office network
 
-```bash
-set DEATHCELL_DEBUG=0
-set DEATHCELL_SECRET_KEY=<a long random string>
-set DEATHCELL_ALLOWED_HOSTS=<server name or IP>
-waitress-serve --listen=0.0.0.0:8000 deathcell.wsgi:application
-```
+One desktop in the cell acts as the host. Everyone else opens the application in
+Chrome or Edge from their own computer – nothing is installed on their machines.
 
-- Change the demo passwords (or delete the demo users) before real use.
-- The data is the file `db.sqlite3` – back it up daily. For many concurrent users
-  switch `DATABASES` to PostgreSQL; nothing else changes.
+**One-time setup on the host PC**
+
+1. Install Python 3.11 or later from python.org and tick *Add python.exe to PATH*.
+2. Copy this folder to the PC, e.g. `C:\DeathCell`.
+3. Double-click **`setup.bat`**. It installs the required packages (internet is needed
+   this one time), creates the database, the AEO offices and one login, `nodal`
+   (password `kadapa@123`).
+4. Double-click **`start.bat`**. A window opens showing the addresses, for example
+   `http://DEATHCELL-PC:8000`. If Windows Firewall asks, allow access on *Private
+   networks* (otherwise add an inbound rule for TCP port 8000).
+5. Sign in as `nodal`, change the password (click your name, top right), and create
+   the real users with their roles under `/admin/` → Users.
+
+**Every day**
+
+- Run `start.bat` on the host and leave its window open. To start it automatically,
+  put a shortcut to `start.bat` in the Startup folder (`Win+R` → `shell:startup`).
+- Staff open `http://<host computer name>:8000` and sign in with their own user.
+  Each person changes their own password from the link under their name.
+- Each start takes a dated copy of the database into the `backups` folder (the latest
+  30 are kept). Copy that folder to another disk regularly.
+
+**Good to know**
+
+- The host must be switched on, awake and on the office network – turn off sleep on
+  it, and ask IT for a fixed IP address or use the computer name.
+- All the data is the single file `db.sqlite3`. To move to another PC, copy the whole
+  folder. To update the program, replace the program files and keep `db.sqlite3`,
+  `backups` and `.secret_key`.
+- It comfortably serves a cell-sized team working at once: saves are queued, and two
+  people can never be given the same diary or letter number. For an office-wide
+  rollout, switch `DATABASES` to PostgreSQL; nothing else changes.
 - The application holds personal data of deceased members and their families. Keep it
-  on the office network, behind logins, and do not expose it to the internet. Aadhaar
-  numbers are deliberately not stored – only whether Aadhaar is seeded.
+  on the internal network only, never expose the port to the internet, and take your
+  IT section's approval. Traffic inside the LAN is plain HTTP. Aadhaar numbers are
+  deliberately not stored – only whether Aadhaar is seeded.
+- Port 8000 in use? Set `DEATHCELL_PORT` (e.g. `set DEATHCELL_PORT=8080`) before
+  `start.bat`. On Linux/macOS run `python serve.py` instead of the `.bat` files.
 
 ## What it does not do (yet)
 
@@ -159,6 +188,8 @@ waitress-serve --listen=0.0.0.0:8000 deathcell.wsgi:application
 ## Layout
 
 ```
+setup.bat, start.bat  one-time setup and daily start on the Windows host
+serve.py              LAN server: backup, database upgrade, then serve
 deathcell/            project settings and URLs
 claims/
   models.py           Claim, Scrutiny, Finding, Communication, ClaimForm, Event

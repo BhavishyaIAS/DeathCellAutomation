@@ -1,7 +1,8 @@
 """Load the office masters and (optionally) fictional demo cases.
 
     python manage.py seed_demo            # masters + demo users + demo cases
-    python manage.py seed_demo --masters  # only AEO offices and demo users
+    python manage.py seed_demo --masters  # real start: AEO offices and one
+                                          # "nodal" login to create the staff with
 
 All members, claimants and establishments below are invented.
 """
@@ -110,7 +111,8 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--masters", action="store_true",
-                            help="Only AEO offices and demo users; no demo cases.")
+                            help="For a real start: AEO offices and the nodal login "
+                                 "only; no demo staff or cases.")
 
     @transaction.atomic
     def handle(self, *args, **options):
@@ -119,7 +121,8 @@ class Command(BaseCommand):
             offices[name], _ = AEOOffice.objects.get_or_create(
                 name=name, defaults={"address": address})
         users = {}
-        for username, first, last, role, designation in USERS:
+        wanted = [u for u in USERS if u[3] == Role.ADMIN] if options["masters"] else USERS
+        for username, first, last, role, designation in wanted:
             user, created = User.objects.get_or_create(username=username, defaults={
                 "first_name": first, "last_name": last, "role": role,
                 "designation": designation,

@@ -445,3 +445,18 @@ class OfficeSettingsScreen(Base):
         response = self.save_settings(reply_days=0)
         self.assertEqual(response.status_code, 200)
         self.assertFalse(OfficeSettings.objects.exists())
+
+
+class OwnPassword(Base):
+    def test_any_user_can_change_their_own_password(self):
+        self.client.force_login(self.da)
+        page = self.client.get(reverse("password_change"))
+        self.assertTemplateUsed(page, "claims/password_change.html")
+        response = self.client.post(reverse("password_change"), {
+            "old_password": "x", "new_password1": "Kadapa-Cell-77",
+            "new_password2": "Kadapa-Cell-77"})
+        self.assertRedirects(response, reverse("dashboard"))
+        self.da.refresh_from_db()
+        self.assertTrue(self.da.check_password("Kadapa-Cell-77"))
+        # still signed in on this computer
+        self.assertEqual(self.client.get(reverse("dashboard")).status_code, 200)

@@ -25,7 +25,7 @@
     <input type="search" name="q" placeholder="Name, UAN, PF no., diary no." aria-label="Search claims">
   </form>
   <div class="who">
-    <span><strong>{{ user.display_name }}</strong><small>{{ user.get_role_display }}</small></span>
+    <a href="{% url 'password_change' %}" title="Change your password"><strong>{{ user.display_name }}</strong><small>{{ user.get_role_display }} · change password</small></a>
     <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn btn-ghost btn-sm">Sign out</button></form>
   </div>
 </header>
